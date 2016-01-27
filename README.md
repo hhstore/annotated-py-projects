@@ -13,8 +13,15 @@ flask 源码注释版本. flask 是一个非常赞的Python web framework.
 
 
 
-## 版本说明:
+## flask 官方资源
 
+- [官方文档](http://flask.pocoo.org/)
+- [flask - github](https://github.com/mitsuhiko/flask)
+- [flask - releases](https://github.com/mitsuhiko/flask/releases)
+
+
+
+## flask 版本说明:
 
 ### flask 0.1
 
@@ -58,7 +65,6 @@ flask 源码注释版本. flask 是一个非常赞的Python web framework.
         - tornado: 比之,较少
         - bottle.py: 并不多(bottle也有3k~1w行)
         
-
 
 ### flask 0.10.1
 
