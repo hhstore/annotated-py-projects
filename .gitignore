@@ -60,3 +60,50 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+
+######################################
+# flask-annotated
+######################################
+.DS_Store
+*.pyc
+*.pyo
+env
+env*
+dist
+*.egg-info
+_mailinglist
+.tox
+.idea/
+
+
+######################################
+# flask-annotated
+######################################
+
+# useless files
+*AUTHORS
+*CHANGES
+*Makefile
+*LICENSE
+*README
+*setup.py
+*setup.cfg
+*MANIFEST.in
+*.ini
+*.gitmodules
+*.travis*
+
+
+# useless folders
+*website/
+*artwork/
+*docs/
+*tests/
+*examples/
+*scripts/
+
+# 0.10.1
+*testsuite/
+
+
