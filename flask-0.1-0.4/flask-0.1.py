@@ -1,30 +1,71 @@
 # -*- coding: utf-8 -*-
-"""
-    flask
-    ~~~~~
 
-    A microframework based on Werkzeug.  It's extensively documented
-    and follows best practice patterns.
 
-    :copyright: (c) 2010 by Armin Ronacher.
-    :license: BSD, see LICENSE for more details.
 """
+flask: 微型web框架.
+    - 核心依赖:
+        - Werkzeug :
+            - 功能实现: request, response
+            - 导入接口:
+        - jinja2 :
+            - 功能实现:
+            - 导入接口: 模板
+
+    - 核心功能模块:
+        - Request()    # 未实现,借用自 Werkzeug
+        - Response()   # 未实现,借用自 Werkzeug
+        - Flask()      # 核心功能类
+
+
+
+
+"""
+
+
 from __future__ import with_statement
 import os
 import sys
 
 from threading import local
+
+# 关键依赖:
+#   - Environment
+#   - PackageLoader
+#   - FileSystemLoader
+#
 from jinja2 import Environment, PackageLoader, FileSystemLoader
-from werkzeug import Request as RequestBase, Response as ResponseBase, \
-     LocalStack, LocalProxy, create_environ, cached_property, \
-     SharedDataMiddleware
+
+# 关键依赖
+#   - request
+#   - response
+#   - SharedDataMiddleware  # 在 Flask() 中引用
+#
+from werkzeug import (
+    Request as RequestBase,
+    Response as ResponseBase,
+    LocalStack, LocalProxy, create_environ,
+    cached_property, SharedDataMiddleware
+)
+
+
+# 关键依赖:
+#   - route
 from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException, InternalServerError
 from werkzeug.contrib.securecookie import SecureCookie
 
+
 # utilities we import from Werkzeug and Jinja2 that are unused
 # in the module but are exported as public interface.
+#
+# werkzeug 依赖: 导入, 作为接口用
+#
 from werkzeug import abort, redirect
+
+
+#
+# jinja2 的依赖:
+#
 from jinja2 import Markup, escape
 
 # use pkg_resource if that works, otherwise fall back to cwd.  The
@@ -37,7 +78,14 @@ except (ImportError, AttributeError):
     pkg_resources = None
 
 
-class Request(RequestBase):
+################################################################################
+# 签注说明:
+# date: 2016-01-27
+# author: hhstore
+#
+################################################################################
+
+class Request(RequestBase):    # 依赖: werkzeug.Request
     """The request object used by default in flask.  Remembers the
     matched endpoint and view arguments.
 
@@ -170,6 +218,12 @@ def _get_package_path(name):
         return os.getcwd()
 
 
+###################################################################
+#                       核心功能接口
+#
+#
+#
+###################################################################
 class Flask(object):
     """The flask object implements a WSGI application and acts as the central
     object.  It is passed the name of the module or package of the
@@ -192,26 +246,27 @@ class Flask(object):
 
     #: the class that is used for request objects.  See :class:`~flask.request`
     #: for more information.
-    request_class = Request
+    request_class = Request      # 请求类
 
     #: the class that is used for response objects.  See
     #: :class:`~flask.Response` for more information.
-    response_class = Response
+    response_class = Response    # 响应类
 
     #: path for the static files.  If you don't want to use static files
     #: you can set this value to `None` in which case no URL rule is added
     #: and the development server will no longer serve any static files.
-    static_path = '/static'
+    static_path = '/static'      # 静态资源路径
 
     #: if a secret key is set, cryptographic components can use this to
     #: sign cookies and other things.  Set this to a complex random value
     #: when you want to use the secure cookie for instance.
-    secret_key = None
+    secret_key = None            # 密钥配置
 
     #: The secure cookie uses this for the name of the session cookie
-    session_cookie_name = 'session'
+    session_cookie_name = 'session'      # 安全cookie
 
     #: options that are passed directly to the Jinja2 environment
+    # 模板参数
     jinja_options = dict(
         autoescape=True,
         extensions=['jinja2.ext.autoescape', 'jinja2.ext.with_']
@@ -223,27 +278,27 @@ class Flask(object):
         #: when an unhandled exception ocurrs and the integrated server
         #: will automatically reload the application if changes in the
         #: code are detected.
-        self.debug = False
+        self.debug = False     # 调试模式开关
 
         #: the name of the package or module.  Do not change this once
         #: it was set by the constructor.
         self.package_name = package_name
 
         #: where is the app root located?
-        self.root_path = _get_package_path(self.package_name)
+        self.root_path = _get_package_path(self.package_name)    # 项目根目录
 
         #: a dictionary of all view functions registered.  The keys will
         #: be function names which are also used to generate URLs and
         #: the values are the function objects themselves.
         #: to register a view function, use the :meth:`route` decorator.
-        self.view_functions = {}
+        self.view_functions = {}         # 视图函数集
 
         #: a dictionary of all registered error handlers.  The key is
         #: be the error code as integer, the value the function that
         #: should handle that error.
         #: To register a error handler, use the :meth:`errorhandler`
         #: decorator.
-        self.error_handlers = {}
+        self.error_handlers = {}           # 出错处理
 
         #: a list of functions that should be called at the beginning
         #: of the request before request dispatching kicks in.  This
@@ -251,14 +306,14 @@ class Flask(object):
         #: getting hold of the currently logged in user.
         #: To register a function here, use the :meth:`before_request`
         #: decorator.
-        self.before_request_funcs = []
+        self.before_request_funcs = []     # 预处理
 
         #: a list of functions that are called at the end of the
         #: request.  Tha function is passed the current response
         #: object and modify it in place or replace it.
         #: To register a function here use the :meth:`after_request`
         #: decorator.
-        self.after_request_funcs = []
+        self.after_request_funcs = []      # 结束清理
 
         #: a list of functions that are called without arguments
         #: to populate the template context.  Each returns a dictionary
@@ -267,15 +322,22 @@ class Flask(object):
         #: decorator.
         self.template_context_processors = [_default_template_ctx_processor]
 
-        self.url_map = Map()
+        # todo: 待深入
+        self.url_map = Map()    # 关键依赖: werkzeug.routing.Map
 
-        if self.static_path is not None:
+        if self.static_path is not None:    # 处理静态资源
+            #
+            # todo: 待深入 关键依赖: werkzeug.routing.Rule
             self.url_map.add(Rule(self.static_path + '/<filename>',
                                   build_only=True, endpoint='static'))
+
             if pkg_resources is not None:
                 target = (self.package_name, 'static')
             else:
                 target = os.path.join(self.root_path, 'static')
+
+            #
+            # todo: 待深入, 关键依赖: werkzeug.SharedDataMiddleware
             self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
                 self.static_path: target
             })
@@ -283,6 +345,7 @@ class Flask(object):
         #: the Jinja2 environment.  It is created from the
         #: :attr:`jinja_options` and the loader that is returned
         #: by the :meth:`create_jinja_loader` function.
+        # todo: 待深入, jinja2 模板配置
         self.jinja_env = Environment(loader=self.create_jinja_loader(),
                                      **self.jinja_options)
         self.jinja_env.globals.update(
@@ -290,6 +353,7 @@ class Flask(object):
             get_flashed_messages=get_flashed_messages
         )
 
+    # 加载 templates 目录文件
     def create_jinja_loader(self):
         """Creates the Jinja loader.  By default just a package loader for
         the configured package is returned that looks up templates in the
@@ -297,6 +361,7 @@ class Flask(object):
         override this method.
         """
         if pkg_resources is None:
+            # 加载 模板目录 文件
             return FileSystemLoader(os.path.join(self.root_path, 'templates'))
         return PackageLoader(self.package_name)
 
@@ -311,6 +376,9 @@ class Flask(object):
         for func in self.template_context_processors:
             context.update(func())
 
+    #
+    # 对外运行接口: 借用werkzeug.run_simple 实现
+    #
     def run(self, host='localhost', port=5000, **options):
         """Runs the application on a local development server.  If the
         :attr:`debug` flag is set the server will automatically reload
@@ -323,18 +391,19 @@ class Flask(object):
                         Werkzeug server.  See :func:`werkzeug.run_simple`
                         for more information.
         """
-        from werkzeug import run_simple
+        from werkzeug import run_simple    # todo: 待深入, 关键依赖: 核心运行模块
         if 'debug' in options:
             self.debug = options.pop('debug')
         options.setdefault('use_reloader', self.debug)
         options.setdefault('use_debugger', self.debug)
-        return run_simple(host, port, self, **options)
+
+        return run_simple(host, port, self, **options)    # 关键依赖:
 
     def test_client(self):
         """Creates a test client for this application.  For information
         about unit testing head over to :ref:`testing`.
         """
-        from werkzeug import Client
+        from werkzeug import Client        # todo: 待深入, 关键依赖:
         return Client(self, self.response_class, use_cookies=True)
 
     def open_resource(self, resource):
@@ -363,10 +432,13 @@ class Flask(object):
             return open(os.path.join(self.root_path, resource), 'rb')
         return pkg_resources.resource_stream(self.package_name, resource)
 
+    #
+    # 创建 session
+    #
     def open_session(self, request):
-        """Creates or opens a new session.  Default implementation stores all
-        session data in a signed cookie.  This requires that the
-        :attr:`secret_key` is set.
+        """Creates or opens a new session.
+        Default implementation stores all session data in a signed cookie.
+        This requires that the :attr:`secret_key` is set.
 
         :param request: an instance of :attr:`request_class`.
         """
@@ -375,6 +447,9 @@ class Flask(object):
             return SecureCookie.load_cookie(request, self.session_cookie_name,
                                             secret_key=key)
 
+    #
+    # 关键代码: 保存session
+    #
     def save_session(self, session, response):
         """Saves the session if it needs updates.  For the default
         implementation, check :meth:`open_session`.
@@ -387,6 +462,7 @@ class Flask(object):
         if session is not None:
             session.save_cookie(response, self.session_cookie_name)
 
+    # 添加路由规则, route() 装饰器的实现,依赖
     def add_url_rule(self, rule, endpoint, **options):
         """Connects a URL rule.  Works exactly like the :meth:`route`
         decorator but does not register the view function for the endpoint.
@@ -413,8 +489,13 @@ class Flask(object):
         """
         options['endpoint'] = endpoint
         options.setdefault('methods', ('GET',))
+
+        # 路由规则添加
         self.url_map.add(Rule(rule, **options))
 
+    #
+    # 路由装饰器定义:
+    #
     def route(self, rule, **options):
         """A decorator that is used to register a view function for a
         given URL rule.  Example::
@@ -481,11 +562,14 @@ class Flask(object):
                         :class:`~werkzeug.routing.Rule` object.
         """
         def decorator(f):
-            self.add_url_rule(rule, f.__name__, **options)
-            self.view_functions[f.__name__] = f
+            self.add_url_rule(rule, f.__name__, **options)    # 添加路由规则
+            self.view_functions[f.__name__] = f               # 更新 视图函数集合, 前面定义,{}
             return f
         return decorator
 
+    #
+    # 错误处理装饰器定义:
+    #
     def errorhandler(self, code):
         """A decorator that is used to register a function give a given
         error code.  Example::
@@ -505,25 +589,39 @@ class Flask(object):
         :param code: the code as integer for the handler
         """
         def decorator(f):
-            self.error_handlers[code] = f
+            self.error_handlers[code] = f     # 前述定义{}
             return f
         return decorator
 
+    #
+    # 请求前,预处理:
+    #   - 注册预处理函数
+    #
     def before_request(self, f):
         """Registers a function to run before each request."""
         self.before_request_funcs.append(f)
         return f
 
+    #
+    # 请求结束, 清理工作:
+    #   - 注册清理函数
+    #
     def after_request(self, f):
         """Register a function to be run after each request."""
         self.after_request_funcs.append(f)
         return f
 
+    #
+    # 模板上下文处理函数
+    #
     def context_processor(self, f):
         """Registers a template context processor function."""
         self.template_context_processors.append(f)
         return f
 
+    #
+    # 请求匹配:
+    #
     def match_request(self):
         """Matches the current request against the URL map and also
         stores the endpoint and view arguments on the request object
@@ -533,6 +631,10 @@ class Flask(object):
         request.endpoint, request.view_args = rv
         return rv
 
+    #
+    # 处理请求:
+    #   - 处理 路由URL 和 对应的 视图函数
+    #
     def dispatch_request(self):
         """Does the request dispatching.  Matches the URL and returns the
         return value of the view or error handler.  This does not have to
@@ -540,7 +642,7 @@ class Flask(object):
         proper response object, call :func:`make_response`.
         """
         try:
-            endpoint, values = self.match_request()
+            endpoint, values = self.match_request()    # 请求匹配
             return self.view_functions[endpoint](**values)
         except HTTPException, e:
             handler = self.error_handlers.get(e.code)
@@ -553,6 +655,7 @@ class Flask(object):
                 raise
             return handler(e)
 
+    # 返回响应
     def make_response(self, rv):
         """Converts the return value from a view function to a real
         response object that is an instance of :attr:`response_class`.
@@ -581,6 +684,9 @@ class Flask(object):
             return self.response_class(*rv)
         return self.response_class.force_type(rv, request.environ)
 
+    #
+    # 请求前, 执行预处理工作中:
+    #
     def preprocess_request(self):
         """Called before the actual request dispatching and will
         call every as :meth:`before_request` decorated function.
@@ -589,10 +695,13 @@ class Flask(object):
         request handling is stopped.
         """
         for func in self.before_request_funcs:
-            rv = func()
+            rv = func()    # 执行预处理函数
             if rv is not None:
                 return rv
 
+    #
+    # 在返回响应前, 作 清理工作, 与上配对
+    #
     def process_response(self, response):
         """Can be overridden in order to modify the response object
         before it's sent to the WSGI server.  By default this will
@@ -604,11 +713,15 @@ class Flask(object):
         """
         session = _request_ctx_stack.top.session
         if session is not None:
-            self.save_session(session, response)
-        for handler in self.after_request_funcs:
+            self.save_session(session, response)     # 保存 session
+
+        for handler in self.after_request_funcs:     # 请求结束后, 清理工作
             response = handler(response)
         return response
 
+    #
+    # 对外接口:
+    #
     def wsgi_app(self, environ, start_response):
         """The actual WSGI application.  This is not implemented in
         `__call__` so that middlewares can be applied:
@@ -621,13 +734,18 @@ class Flask(object):
                                exception context to start the response
         """
         with self.request_context(environ):
-            rv = self.preprocess_request()
+            rv = self.preprocess_request()      # 请求前, 预处理
             if rv is None:
-                rv = self.dispatch_request()
-            response = self.make_response(rv)
-            response = self.process_response(response)
+                rv = self.dispatch_request()    # 处理请求
+
+            response = self.make_response(rv)            # 返回响应
+            response = self.process_response(response)   # 返回响应前, 作清理工作
+
             return response(environ, start_response)
 
+    #
+    # 请求上下文
+    #
     def request_context(self, environ):
         """Creates a request context from the given environment and binds
         it to the current context.  This must be used in combination with
