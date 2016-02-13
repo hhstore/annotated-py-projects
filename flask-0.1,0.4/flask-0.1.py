@@ -2,11 +2,18 @@
 
 
 """
+签注说明:
+    - date: 2016-01-27
+    - author: hhstore
+    - 说明:
+        - 删除部分无关紧要的原注释,不影响理解
+        - 部分源码注释,作了精简翻译.
+
 flask: 微型web框架.
     - 核心依赖:
         - Werkzeug :
             - 功能实现: request, response
-            - 导入接口:
+            - 导入接口: 部分未实现接口, 直接导入用
         - jinja2 :
             - 功能实现:
             - 导入接口: 模板
@@ -16,8 +23,9 @@ flask: 微型web框架.
         - Response()   # 未实现,借用自 Werkzeug
         - Flask()      # 核心功能类
 
-
-
+    - 点评:
+        - 对比 bottle.py框架, flask第一版的代码并不多, 但是 有几个关键模块,没有自己实现.
+        - 而 bottle.py 的 web框架 核心组件, 都是自己实现的,未依赖任何其他第三方模块.
 
 """
 
@@ -28,49 +36,30 @@ import sys
 
 from threading import local
 
-# 关键依赖:
-#   - Environment
-#   - PackageLoader
-#   - FileSystemLoader
-#
-from jinja2 import Environment, PackageLoader, FileSystemLoader
-
-# 关键依赖
-#   - request
-#   - response
-#   - SharedDataMiddleware  # 在 Flask() 中引用
-#
-from werkzeug import (
-    Request as RequestBase,
-    Response as ResponseBase,
-    LocalStack, LocalProxy, create_environ,
-    cached_property, SharedDataMiddleware
+from jinja2 import (            # flask 部分模块实现,依赖 jinja2
+    Environment,
+    PackageLoader,
+    FileSystemLoader
 )
 
+from werkzeug import (          # flask 部分模块实现,严重依赖 werkzeug
+    Request as RequestBase,     # 关键依赖
+    Response as ResponseBase,   # 关键依赖
+    LocalStack,                 # 文件末尾, _request_ctx_stack 中依赖
+    LocalProxy,                 # 文件末尾, current_app 中依赖
+    create_environ,
+    cached_property,
+    SharedDataMiddleware        # Flask() 模块 中引用
+)
 
-# 关键依赖:
-#   - route
 from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException, InternalServerError
 from werkzeug.contrib.securecookie import SecureCookie
 
-
-# utilities we import from Werkzeug and Jinja2 that are unused
-# in the module but are exported as public interface.
-#
-# werkzeug 依赖: 导入, 作为接口用
-#
-from werkzeug import abort, redirect
+from werkzeug import abort, redirect      # werkzeug 依赖: 本文件未使用,但导入以用作 对外接口
+from jinja2 import Markup, escape         # jinja2 的依赖: 本文件未使用,但导入以用作 对外接口
 
 
-#
-# jinja2 的依赖:
-#
-from jinja2 import Markup, escape
-
-# use pkg_resource if that works, otherwise fall back to cwd.  The
-# current working directory is generally not reliable with the notable
-# exception of google appengine.
 try:
     import pkg_resources
     pkg_resources.resource_stream
@@ -79,13 +68,36 @@ except (ImportError, AttributeError):
 
 
 ################################################################################
-# 签注说明:
-# date: 2016-01-27
-# author: hhstore
+#                             代码主体部分
+# 说明:
+#   - 主要模块:
+#       - Request()     # 未独立实现, 依赖 werkzeug
+#       - Response()    # 未独立实现, 依赖 werkzeug
+#       - Flask()       # web 框架核心模块
+#
+#   - 对外接口函数:
+#       - url_for()
+#       - flash()
+#       - get_flashed_messages
+#       - render_template()
+#       - render_template_string()
+#
+#   - 全局上下文对象:    [ 特别注意理解: 为何是上下文的?]
+#       - _request_ctx_stack
+#       - current_app
+#       - request
+#       - session
+#       - g
+#
+#   - 辅助模块:
+#       - _RequestGlobals()
+#       - _RequestContext()
+#
+# todo: 注解说明
 #
 ################################################################################
 
-class Request(RequestBase):    # 依赖: werkzeug.Request
+class Request(RequestBase):       # 未独立实现, 依赖 werkzeug.Request
     """The request object used by default in flask.  Remembers the
     matched endpoint and view arguments.
 
@@ -100,7 +112,7 @@ class Request(RequestBase):    # 依赖: werkzeug.Request
         self.view_args = None
 
 
-class Response(ResponseBase):
+class Response(ResponseBase):     # 未独立实现, 依赖 werkzeug.Response
     """The response object that is used by default in flask.  Works like the
     response object from Werkzeug but is set to have a HTML mimetype by
     default.  Quite often you don't have to create this object yourself because
@@ -112,11 +124,11 @@ class Response(ResponseBase):
     default_mimetype = 'text/html'
 
 
-class _RequestGlobals(object):
+class _RequestGlobals(object):    # 预定义接口: _RequestContext() 中 引用
     pass
 
 
-class _RequestContext(object):
+class _RequestContext(object):    # 请求上下文, 在 flask.request_context() 中 引用
     """The request context contains all request relevant information.  It is
     created at the beginning of the request and pushed to the
     `_request_ctx_stack` and removed at the end of it.  It will create the
@@ -128,7 +140,7 @@ class _RequestContext(object):
         self.url_adapter = app.url_map.bind_to_environ(environ)
         self.request = app.request_class(environ)
         self.session = app.open_session(self.request)
-        self.g = _RequestGlobals()
+        self.g = _RequestGlobals()    # 预定义接口
         self.flashes = None
 
     def __enter__(self):
@@ -142,7 +154,7 @@ class _RequestContext(object):
             _request_ctx_stack.pop()
 
 
-def url_for(endpoint, **values):
+def url_for(endpoint, **values):    # 实现依赖: werkzeug.LocalStack 模块
     """Generates a URL to the given endpoint with the method provided.
 
     :param endpoint: the endpoint of the URL (name of the function)
@@ -151,13 +163,15 @@ def url_for(endpoint, **values):
     return _request_ctx_stack.top.url_adapter.build(endpoint, values)
 
 
-def flash(message):
+def flash(message):     # 向页面 输出 一条 消息
     """Flashes a message to the next request.  In order to remove the
     flashed message from the session and to display it to the user,
     the template has to call :func:`get_flashed_messages`.
 
     :param message: the message to be flashed.
     """
+
+    # session : 文件末尾定义的 全局上下文对象
     session['_flashes'] = (session.get('_flashes', [])) + [message]
 
 
@@ -173,7 +187,7 @@ def get_flashed_messages():
     return flashes
 
 
-def render_template(template_name, **context):
+def render_template(template_name, **context):    # 渲染模板页面: 通过查找 templates 目录
     """Renders a template from the template folder with the given
     context.
 
@@ -181,11 +195,14 @@ def render_template(template_name, **context):
     :param context: the variables that should be available in the
                     context of the template.
     """
+
+    # current_app : 文件结尾定义的 全局上下文对象
+    # 实现依赖 werkzeug
     current_app.update_template_context(context)
     return current_app.jinja_env.get_template(template_name).render(context)
 
 
-def render_template_string(source, **context):
+def render_template_string(source, **context):   # 渲染模板页面: 通过传入的模板字符串
     """Renders a template from the given template source string
     with the given context.
 
@@ -194,15 +211,17 @@ def render_template_string(source, **context):
     :param context: the variables that should be available in the
                     context of the template.
     """
+    # 同上
     current_app.update_template_context(context)
     return current_app.jinja_env.from_string(source).render(context)
 
 
-def _default_template_ctx_processor():
-    """Default template context processor.  Injects `request`,
-    `session` and `g`.
+def _default_template_ctx_processor():    # 默认的模板上下文 处理机
+    """Default template context processor.
+    Injects `request`, `session` and `g`.
     """
-    reqctx = _request_ctx_stack.top
+    reqctx = _request_ctx_stack.top     # 文件末尾定义的 全局上下文对象
+
     return dict(
         request=reqctx.request,
         session=reqctx.session,
@@ -210,7 +229,7 @@ def _default_template_ctx_processor():
     )
 
 
-def _get_package_path(name):
+def _get_package_path(name):     # 获取 模块包 路径, Flask() 中 引用
     """Returns the path to a package or cwd if that cannot be found."""
     try:
         return os.path.abspath(os.path.dirname(sys.modules[name].__file__))
@@ -282,10 +301,20 @@ class Flask(object):
 
         #: the name of the package or module.  Do not change this once
         #: it was set by the constructor.
+        #
+        # 注意:
+        #   - 这个参数,不是随便乱给的
+        #   - 要跟实际的 项目工程目录名对应,否则无法找到对应的工程
+        #
         self.package_name = package_name
 
         #: where is the app root located?
-        self.root_path = _get_package_path(self.package_name)    # 项目根目录
+        #
+        # 注意:
+        #   - 调用前面定义的 全局私有方法
+        #   - 依赖前面的传入参数, 通过该参数, 获取 项目工程源码根目录.
+        #
+        self.root_path = _get_package_path(self.package_name)    # 获取项目根目录
 
         #: a dictionary of all view functions registered.  The keys will
         #: be function names which are also used to generate URLs and
@@ -759,7 +788,7 @@ class Flask(object):
 
         :params environ: a WSGI environment
         """
-        return _RequestContext(self, environ)
+        return _RequestContext(self, environ)     # 请求上下文, 上述已定义该模块
 
     def test_request_context(self, *args, **kwargs):
         """Creates a WSGI environment from the given values (see
@@ -774,8 +803,8 @@ class Flask(object):
 
 
 # context locals
-_request_ctx_stack = LocalStack()
+_request_ctx_stack = LocalStack()    # 依赖 werkzeug.LocalStack 模块
 current_app = LocalProxy(lambda: _request_ctx_stack.top.app)
 request = LocalProxy(lambda: _request_ctx_stack.top.request)
-session = LocalProxy(lambda: _request_ctx_stack.top.session)
+session = LocalProxy(lambda: _request_ctx_stack.top.session)    # flash()函数 中 引用
 g = LocalProxy(lambda: _request_ctx_stack.top.g)
