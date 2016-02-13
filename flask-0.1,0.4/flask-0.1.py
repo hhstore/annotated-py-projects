@@ -42,6 +42,10 @@ from jinja2 import (            # flask 部分模块实现,依赖 jinja2
     FileSystemLoader
 )
 
+
+# 说明:
+#   - 最新版本的 werkzeug 模块组织结构发生改变, 下面这条导包语句,已失效
+#
 from werkzeug import (          # flask 部分模块实现,严重依赖 werkzeug
     Request as RequestBase,     # 关键依赖
     Response as ResponseBase,   # 关键依赖
