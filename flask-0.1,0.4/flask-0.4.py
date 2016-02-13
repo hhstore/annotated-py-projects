@@ -20,11 +20,7 @@ flask: 微型web框架.
         - Flask()      # 核心功能类
 
 
-
-
 """
-
-
 
 
 from __future__ import with_statement
@@ -35,11 +31,30 @@ from datetime import datetime, timedelta
 
 from itertools import chain
 from threading import Lock
+
 from jinja2 import Environment, PackageLoader, FileSystemLoader
-from werkzeug import Request as RequestBase, Response as ResponseBase, \
-     LocalStack, LocalProxy, create_environ, SharedDataMiddleware, \
-     ImmutableDict, cached_property, wrap_file, Headers, \
-     import_string
+
+
+
+# 原导包路径,已失效,现注释掉,并替换如下:
+#
+# from werkzeug import Request as RequestBase, Response as ResponseBase, \
+#     LocalStack, LocalProxy, create_environ, \
+#     SharedDataMiddleware, ImmutableDict, \
+#     cached_property, wrap_file, Headers, import_string
+#
+#
+# 替换为最新有效的导包路径:
+#
+from werkzeug.wrappers import Request as RequestBase, Response as ResponseBase
+from werkzeug.datastructures import ImmutableDict, Headers
+from werkzeug.local import LocalStack, LocalProxy
+from werkzeug.utils import cached_property
+from werkzeug.wsgi import SharedDataMiddleware
+# 失效的导包路径: 暂未找到最新有效导包路径
+from werkzeug import  create_environ, cached_property, wrap_file, , import_string
+
+
 from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException, InternalServerError
 from werkzeug.contrib.securecookie import SecureCookie
