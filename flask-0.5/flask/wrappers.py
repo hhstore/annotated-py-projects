@@ -9,8 +9,20 @@
     :license: BSD, see LICENSE for more details.
 """
 
-from werkzeug import Request as RequestBase, Response as ResponseBase, \
-    cached_property
+
+# 说明:
+#   - 最新版本的 werkzeug 模块组织结构发生改变, 改为上面的导包路径
+#   - 故注释掉下一行的旧版本的导包路径
+#
+#from werkzeug import Request as RequestBase, Response as ResponseBase, cached_property
+#
+#
+from werkzeug.wrappers import (
+    Request as RequestBase,
+    Response as ResponseBase,
+)
+from werkzeug.utils import cached_property
+
 
 from .helpers import json, _assert_have_json
 
