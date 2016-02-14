@@ -63,7 +63,6 @@ from werkzeug.contrib.securecookie import SecureCookie
 from werkzeug import abort, redirect      # werkzeug 依赖: 本文件未使用,但导入以用作 对外接口
 from jinja2 import Markup, escape         # jinja2 的依赖: 本文件未使用,但导入以用作 对外接口
 
-
 try:
     import pkg_resources
     pkg_resources.resource_stream
@@ -100,6 +99,7 @@ except (ImportError, AttributeError):
 # todo: 注解说明
 #
 ################################################################################
+
 
 class Request(RequestBase):       # 未独立实现, 依赖 werkzeug.Request
     def __init__(self, environ):
@@ -165,7 +165,7 @@ def render_template_string(source, **context):   # 渲染模板页面: 通过传
 
 
 def _default_template_ctx_processor():    # 默认的模板上下文 处理机
-    reqctx = _request_ctx_stack.top     # 文件末尾定义的 全局上下文对象
+    reqctx = _request_ctx_stack.top       # 文件末尾定义的 全局上下文对象
 
     return dict(
         request=reqctx.request,
@@ -188,19 +188,12 @@ def _get_package_path(name):     # 获取 模块包 路径, Flask() 中 引用
 #
 ###################################################################
 class Flask(object):
-
-    request_class = Request      # 请求类
-
-    response_class = Response    # 响应类
-
-    static_path = '/static'      # 静态资源路径
-
-    secret_key = None            # 密钥配置
-
+    request_class = Request              # 请求类
+    response_class = Response            # 响应类
+    static_path = '/static'              # 静态资源路径
+    secret_key = None                    # 密钥配置
     session_cookie_name = 'session'      # 安全cookie
-
-    # 模板参数
-    jinja_options = dict(
+    jinja_options = dict(                # jinja 模板配置参数
         autoescape=True,
         extensions=['jinja2.ext.autoescape', 'jinja2.ext.with_']
     )
@@ -219,22 +212,14 @@ class Flask(object):
         #   - 依赖前面的传入参数, 通过该参数, 获取 项目工程源码根目录.
         #
         self.root_path = _get_package_path(self.package_name)    # 获取项目根目录
-
-        self.view_functions = {}         # 视图函数集
-
+        self.view_functions = {}           # 视图函数集
         self.error_handlers = {}           # 出错处理
-
         self.before_request_funcs = []     # 预处理
-
         self.after_request_funcs = []      # 结束清理
-
         self.template_context_processors = [_default_template_ctx_processor]
-
-        # todo: 待深入
-        self.url_map = Map()    # 关键依赖: werkzeug.routing.Map
+        self.url_map = Map()               # todo: 待深入 // 关键依赖: werkzeug.routing.Map
 
         if self.static_path is not None:    # 处理静态资源
-            #
             # todo: 待深入 关键依赖: werkzeug.routing.Rule
             self.url_map.add(Rule(self.static_path + '/<filename>',
                                   build_only=True, endpoint='static'))
@@ -384,7 +369,9 @@ class Flask(object):
                 raise
             return handler(e)
 
+    #
     # 返回响应
+    #
     def make_response(self, rv):
         if isinstance(rv, self.response_class):
             return rv
