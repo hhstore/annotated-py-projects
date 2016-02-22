@@ -142,8 +142,13 @@ class _RequestContext(object):    # 请求上下文, 在 flask.request_context()
         self.app = app
         self.url_adapter = app.url_map.bind_to_environ(environ)
         self.request = app.request_class(environ)
+
+        # 带上下文的 session 实现
         self.session = app.open_session(self.request)
+
+        # 关键: 待上下文的 g 实现
         self.g = _RequestGlobals()    # 预定义接口
+
         self.flashes = None
 
     def __enter__(self):
@@ -768,7 +773,7 @@ class Flask(object):
                                a list of headers and an optional
                                exception context to start the response
         """
-        with self.request_context(environ):
+        with self.request_context(environ):     # 请求上下文
             rv = self.preprocess_request()      # 请求前, 预处理
             if rv is None:
                 rv = self.dispatch_request()    # 处理请求
