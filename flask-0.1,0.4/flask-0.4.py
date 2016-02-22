@@ -1152,10 +1152,9 @@ class Flask(_PackageBoundObject):
         return FlaskClient(self, self.response_class, use_cookies=True)
 
     #
-    # 创建 or 打开一个 会话(session)
-    #   - 实现方式:
-    #       - 使用 cookie 实现
-    #       - 默认把全部session数据, 存入一个 cookie 中.
+    # 关键接口: 创建 or 打开一个 会话(session)
+    #   - 实现方式: 使用 cookie 实现
+    #   - 默认把全部session数据, 存入一个 cookie 中.
     #
     def open_session(self, request):
         """Creates or opens a new session.  Default implementation stores all
@@ -1170,7 +1169,7 @@ class Flask(_PackageBoundObject):
                                        secret_key=key)
 
     #
-    # 更新session
+    # 关键接口: 更新session
     #
     def save_session(self, session, response):
         """Saves the session if it needs updates.  For the default

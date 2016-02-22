@@ -466,7 +466,9 @@ class Flask(object):
 
     #
     # 关键接口: 创建 or 打开一个 会话(session)
-    #   - 通过 cookie 实现 session
+    #   - 实现方式: 使用 cookie 实现
+    #   - 默认把全部session数据, 存入一个 cookie 中.
+    #   - 对比 flask-0.4 版本, 部分重构
     #
     def open_session(self, request):
         """Creates or opens a new session.
@@ -481,7 +483,7 @@ class Flask(object):
                                             secret_key=key)
 
     #
-    # 关键代码: 保存session
+    # 关键接口: 更新session
     #
     def save_session(self, session, response):
         """Saves the session if it needs updates.  For the default
