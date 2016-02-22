@@ -1467,6 +1467,10 @@ class Flask(_PackageBoundObject):
             return self.response_class(*rv)
         return self.response_class.force_type(rv, request.environ)
 
+    #
+    # 请求预处理
+    #   - 在每次请求处理前, 被调用
+    #
     def preprocess_request(self):
         """Called before the actual request dispatching and will
         call every as :meth:`before_request` decorated function.
@@ -1507,6 +1511,7 @@ class Flask(_PackageBoundObject):
         return response
 
     #
+    # todo: 关键
     # 关键接口:
     #   - 入口处:
     #       - 提供一个start_response，用于回流（回调，callback），
@@ -1544,7 +1549,13 @@ class Flask(_PackageBoundObject):
                                a list of headers and an optional
                                exception context to start the response
         """
-        with self.request_context(environ):     # 请求上下文
+        with self.request_context(environ):     # 入口: 请求上下文
+            #
+            #  middleware 部分:(以下代码)
+            #   - 获取请求(request)
+            #   - 处理, 并生成 响应
+            #   - 返回响应(response)
+            #
             try:
                 rv = self.preprocess_request()
                 if rv is None:
@@ -1557,7 +1568,8 @@ class Flask(_PackageBoundObject):
                 response = self.process_response(response)
             except Exception, e:
                 response = self.make_response(self.handle_exception(e))
-            return response(environ, start_response)
+
+            return response(environ, start_response)   # 出口: 返回响应
 
     #
     # 关键接口: 请求上下文
@@ -1615,7 +1627,27 @@ class Flask(_PackageBoundObject):
 
 # context locals
 _request_ctx_stack = LocalStack()
-current_app = LocalProxy(lambda: _request_ctx_stack.top.app)
-request = LocalProxy(lambda: _request_ctx_stack.top.request)
-session = LocalProxy(lambda: _request_ctx_stack.top.session)
-g = LocalProxy(lambda: _request_ctx_stack.top.g)
+
+# 特别注意:
+#   - 深入理解 "上下文概念"
+#   - 支持多线程, 线程无关
+#
+
+
+#
+# 应用级上下文:
+#   - 应用级别: 数据隔离
+#   - 多个app之间(app1, app2), 数据是相互隔离的
+#
+current_app = LocalProxy(lambda: _request_ctx_stack.top.app)    # 应用上下文: current_app
+g = LocalProxy(lambda: _request_ctx_stack.top.g)                # 应用上下文: g 对象
+
+
+#
+# 请求级上下文:
+#   - 请求级别: 数据隔离
+#   - 多个请求之间, 数据是隔离开的
+#
+request = LocalProxy(lambda: _request_ctx_stack.top.request)    # 请求上下文: request
+session = LocalProxy(lambda: _request_ctx_stack.top.session)    # 请求上下文: 会话(session)
+
