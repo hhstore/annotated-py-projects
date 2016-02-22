@@ -465,7 +465,8 @@ class Flask(object):
         return pkg_resources.resource_stream(self.package_name, resource)
 
     #
-    # 创建 session
+    # 关键接口: 创建 or 打开一个 会话(session)
+    #   - 通过 cookie 实现 session
     #
     def open_session(self, request):
         """Creates or opens a new session.

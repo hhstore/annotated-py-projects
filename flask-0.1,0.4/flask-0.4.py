@@ -30,11 +30,13 @@ import mimetypes
 from datetime import datetime, timedelta
 
 from itertools import chain
-from threading import Lock
+from threading import Lock     # 日志记录器 专用锁 - 引用
 
-from jinja2 import Environment, PackageLoader, FileSystemLoader
-
-
+from jinja2 import (            # flask 部分模块实现,依赖 jinja2
+    Environment,
+    PackageLoader,
+    FileSystemLoader
+)
 
 # 原导包路径,已失效,现注释掉,并替换如下:
 #
@@ -54,14 +56,19 @@ from werkzeug.wsgi import SharedDataMiddleware
 # 失效的导包路径: 暂未找到最新有效导包路径
 from werkzeug import create_environ, wrap_file, import_string
 
-
 from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException, InternalServerError
 from werkzeug.contrib.securecookie import SecureCookie
 
+# utilities we import from Werkzeug and Jinja2 that are unused
+# in the module but are exported as public interface.
+from werkzeug import abort, redirect      # werkzeug 依赖: 本文件未使用,但导入以用作 对外接口
+from jinja2 import Markup, escape         # jinja2 的依赖: 本文件未使用,但导入以用作 对外接口
+
+
 # try to load the best simplejson implementation available.  If JSON
 # is not installed, we add a failing class.
-json_available = True
+json_available = True       # json 支持, 备注: python2.x,某些版本不支持
 try:
     import simplejson as json
 except ImportError:
@@ -70,23 +77,31 @@ except ImportError:
     except ImportError:
         json_available = False
 
-# utilities we import from Werkzeug and Jinja2 that are unused
-# in the module but are exported as public interface.
-from werkzeug import abort, redirect
-from jinja2 import Markup, escape
-
-# use pkg_resource if that works, otherwise fall back to cwd.  The
-# current working directory is generally not reliable with the notable
-# exception of google appengine.
 try:
     import pkg_resources
     pkg_resources.resource_stream
 except (ImportError, AttributeError):
     pkg_resources = None
 
-# a lock used for logger initialization
-_logger_lock = Lock()
 
+_logger_lock = Lock()    # 日志记录器 - 初始化 专用锁
+
+
+################################################################################
+#                             代码主体部分
+# 说明:
+#   - 主要模块:
+#       - Request()           # 未独立实现, 依赖 werkzeug, 更新: 已作扩展修改
+#       - Response()          # 未独立实现, 依赖 werkzeug, 更新: 未修改
+#       - Session()           # 对比 0.1, 新增
+#       - Module()            # 对比 0.1, 新增
+#       - ConfigAttribute()   # 对比 0.1, 新增
+#       - Config()            # 对比 0.1, 新增
+#       - Flask()             # web 框架核心模块
+#
+# todo:
+#
+################################################################################
 
 class Request(RequestBase):
     """The request object used by default in flask.  Remembers the
@@ -1030,18 +1045,26 @@ class Flask(_PackageBoundObject):
         with _logger_lock:
             if self._logger and self._logger.name == self.logger_name:
                 return self._logger
+
+            # 注意 log模块, 导入依赖
+            #   - 局部导入: 防止出现循环导入
+            #
             from logging import getLogger, StreamHandler, Formatter, \
                                 Logger,  DEBUG
+
             class DebugLogger(Logger):
                 def getEffectiveLevel(x):
                     return DEBUG if self.debug else Logger.getEffectiveLevel(x)
+
             class DebugHandler(StreamHandler):
                 def emit(x, record):
                     StreamHandler.emit(x, record) if self.debug else None
+
             handler = DebugHandler()
-            handler.setLevel(DEBUG)
+            handler.setLevel(DEBUG)    # 日志级别
             handler.setFormatter(Formatter(self.debug_log_format))
             logger = getLogger(self.logger_name)
+
             logger.__class__ = DebugLogger
             logger.addHandler(handler)
             self._logger = logger
@@ -1083,7 +1106,7 @@ class Flask(_PackageBoundObject):
                         Werkzeug server.  See :func:`werkzeug.run_simple`
                         for more information.
         """
-        from werkzeug import run_simple
+        from werkzeug import run_simple    # 局部导入: 防止 循环导入
         if 'debug' in options:
             self.debug = options.pop('debug')
         options.setdefault('use_reloader', self.debug)
@@ -1105,7 +1128,7 @@ class Flask(_PackageBoundObject):
         .. versionchanged:: 0.4
            added support for `with` block usage for the client.
         """
-        from werkzeug import Client
+        from werkzeug import Client       # 局部导入: 防止 循环导入
         class FlaskClient(Client):
             preserve_context = context_preserved = False
             def open(self, *args, **kwargs):
@@ -1128,6 +1151,12 @@ class Flask(_PackageBoundObject):
                     _request_ctx_stack.pop()
         return FlaskClient(self, self.response_class, use_cookies=True)
 
+    #
+    # 创建 or 打开一个 会话(session)
+    #   - 实现方式:
+    #       - 使用 cookie 实现
+    #       - 默认把全部session数据, 存入一个 cookie 中.
+    #
     def open_session(self, request):
         """Creates or opens a new session.  Default implementation stores all
         session data in a signed cookie.  This requires that the
@@ -1140,6 +1169,9 @@ class Flask(_PackageBoundObject):
             return Session.load_cookie(request, self.session_cookie_name,
                                        secret_key=key)
 
+    #
+    # 更新session
+    #
     def save_session(self, session, response):
         """Saves the session if it needs updates.  For the default
         implementation, check :meth:`open_session`.
