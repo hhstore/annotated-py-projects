@@ -177,21 +177,31 @@ class _NullSession(Session):
     del _fail
 
 
+#
+# 请求上下文: 超级关键, 非常重要
+#   - 内部实现 请求上下文的 g, session
+#   - flask.request_context() 中 引用
+#
 class _RequestContext(object):
     """The request context contains all request relevant information.  It is
     created at the beginning of the request and pushed to the
-    `_request_ctx_stack` and removed at the end of it.  It will create the
-    URL adapter and request object for the WSGI environment provided.
+    `_request_ctx_stack` and removed at the end of it.
+
+    It will create the URL adapter and request object for the WSGI environment provided.
     """
 
     def __init__(self, app, environ):
         self.app = app
         self.url_adapter = app.url_map.bind_to_environ(environ)
         self.request = app.request_class(environ)
-        self.session = app.open_session(self.request)
+
+        # 会话(session) 实现:
+        self.session = app.open_session(self.request)    # 关键代码:  session: 请求上下文的 session 对象
         if self.session is None:
             self.session = _NullSession()
-        self.g = _RequestGlobals()
+
+        # g 实现:
+        self.g = _RequestGlobals()     # g: 请求上下文的 g 对象
         self.flashes = None
 
         try:
@@ -200,16 +210,25 @@ class _RequestContext(object):
         except HTTPException, e:
             self.request.routing_exception = e
 
+    #
+    # 入栈:
+    #   - 绑定 请求上下文
+    #   - 把 自身所有变量, 入栈 --> 实现带上下文的 g, session
+    #
     def push(self):
         """Binds the request context."""
-        _request_ctx_stack.push(self)
+        _request_ctx_stack.push(self)    # 全局对象: 文件末尾定义
 
+    #
+    # 出栈:
+    #   - 输出 请求上下文
+    #
     def pop(self):
         """Pops the request context."""
-        _request_ctx_stack.pop()
+        _request_ctx_stack.pop()         # 全局对象: 文件末尾定义
 
     def __enter__(self):
-        self.push()
+        self.push()        # 自动 入栈
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
@@ -219,7 +238,7 @@ class _RequestContext(object):
         # the context can be force kept alive for the test client.
         if not self.request.environ.get('flask._preserve_context') and \
            (tb is None or not self.app.debug):
-            self.pop()
+            self.pop()     # 自动 出栈
 
 
 def url_for(endpoint, **values):
@@ -1477,6 +1496,7 @@ class Flask(_PackageBoundObject):
         mod = ctx.request.module
         if not isinstance(ctx.session, _NullSession):
             self.save_session(ctx.session, response)
+
         funcs = ()
         if mod and mod in self.after_request_funcs:
             funcs = chain(funcs, self.after_request_funcs[mod])
@@ -1486,6 +1506,19 @@ class Flask(_PackageBoundObject):
             response = handler(response)
         return response
 
+    #
+    # 关键接口:
+    #   - 入口处:
+    #       - 提供一个start_response，用于回流（回调，callback），
+    #       - 入口会连接到出口的一个函数，并传递 environ字典 和 start_response 作为参数；
+    #   - 出口处:
+    #       - 调用 start_response 并传递 status 和 header，然后再返回 content。
+    #   - 理解 WSGI:
+    #       - 在WSGI规范下，web组件被分成三类：client, server, and middleware
+    #       - 入口 叫做 web server, 只能接受外界的请求并调用下一段管件的函数
+    #       - 中间的管件 叫做 middleware, 既可以接收上一段管件的请求，又可以调用下一段管件的函数
+    #       - 管道的终点 叫做 web app，只能被上一段管件调用。
+    #
     def wsgi_app(self, environ, start_response):
         """The actual WSGI application.  This is not implemented in
         `__call__` so that middlewares can be applied without losing a
@@ -1511,7 +1544,7 @@ class Flask(_PackageBoundObject):
                                a list of headers and an optional
                                exception context to start the response
         """
-        with self.request_context(environ):
+        with self.request_context(environ):     # 请求上下文
             try:
                 rv = self.preprocess_request()
                 if rv is None:
@@ -1519,12 +1552,16 @@ class Flask(_PackageBoundObject):
                 response = self.make_response(rv)
             except Exception, e:
                 response = self.make_response(self.handle_exception(e))
+
             try:
                 response = self.process_response(response)
             except Exception, e:
                 response = self.make_response(self.handle_exception(e))
             return response(environ, start_response)
 
+    #
+    # 关键接口: 请求上下文
+    #
     def request_context(self, environ):
         """Creates a request context from the given environment and binds
         it to the current context.  This must be used in combination with
@@ -1562,7 +1599,7 @@ class Flask(_PackageBoundObject):
 
         :param environ: a WSGI environment
         """
-        return _RequestContext(self, environ)
+        return _RequestContext(self, environ)    # 关键类
 
     def test_request_context(self, *args, **kwargs):
         """Creates a WSGI environment from the given values (see
