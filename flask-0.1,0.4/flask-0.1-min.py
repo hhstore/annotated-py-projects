@@ -44,17 +44,16 @@ from jinja2 import (            # flask 部分模块实现,依赖 jinja2
 
 
 # 说明:
-#   - 最新版本的 werkzeug 模块组织结构发生改变, 下面这条导包语句,已失效
+#   - flask 部分模块实现,严重依赖 werkzeug
+#   - 最新版本的 werkzeug 模块组织结构发生改变.
+#   - 部分失效导包语句, 已被替换掉,请注意
+#   - 下面最后一条导包语句,已失效, 暂未找到有效的替换
 #
-from werkzeug import (          # flask 部分模块实现,严重依赖 werkzeug
-    Request as RequestBase,     # 关键依赖
-    Response as ResponseBase,   # 关键依赖
-    LocalStack,                 # 文件末尾, _request_ctx_stack 中依赖
-    LocalProxy,                 # 文件末尾, current_app 中依赖
-    create_environ,
-    cached_property,
-    SharedDataMiddleware        # Flask() 模块 中引用
-)
+from werkzeug.wrappers import Request as RequestBase, Response as ResponseBase    # 关键依赖
+from werkzeug.local import LocalStack, LocalProxy     # 文件末尾, _request_ctx_stack, current_app 中依赖
+from werkzeug.wsgi import SharedDataMiddleware        # Flask() 模块 中引用
+from werkzeug import (create_environ, cached_property)    # 已失效
+
 
 from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException, InternalServerError
