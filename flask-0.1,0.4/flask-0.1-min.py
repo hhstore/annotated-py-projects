@@ -45,14 +45,15 @@ from jinja2 import (            # flask 部分模块实现,依赖 jinja2
 
 # 说明:
 #   - flask 部分模块实现,严重依赖 werkzeug
-#   - 最新版本的 werkzeug 模块组织结构发生改变.
-#   - 部分失效导包语句, 已被替换掉,请注意
+#   - werkzeug 最新版本,模块组织结构发生改变.
+#   - 故替换部分失效导包语句,请注意
 #   - 下面最后一条导包语句,已失效, 暂未找到有效的替换
 #
 from werkzeug.wrappers import Request as RequestBase, Response as ResponseBase    # 关键依赖
 from werkzeug.local import LocalStack, LocalProxy     # 文件末尾, _request_ctx_stack, current_app 中依赖
 from werkzeug.wsgi import SharedDataMiddleware        # Flask() 模块 中引用
-from werkzeug import (create_environ, cached_property)    # 已失效
+from werkzeug.utils import cached_property
+from werkzeug import create_environ    # 已失效
 
 
 from werkzeug.routing import Map, Rule
