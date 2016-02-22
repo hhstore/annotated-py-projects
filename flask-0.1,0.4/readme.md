@@ -29,3 +29,11 @@
 
 
 
+## Web 知识点补缺:
+
+- [flask 中的 上下文 g, session 实现]()
+
+- [理解WSGI]():
+    - [WSGI-维基](https://zh.wikipedia.org/wiki/Web%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%BD%91%E5%85%B3%E6%8E%A5%E5%8F%A3)
+    - [戏说WSGI（Python Web服务网关接口）](http://www.cnblogs.com/holbrook/archive/2012/02/25/2357337.html)
+    - [WSGI 是什么 以及如何使用](http://zsl-oo7.blog.163.com/blog/static/353297032013111510441430/)
