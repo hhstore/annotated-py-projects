@@ -1239,8 +1239,12 @@ class Flask(_PackageBoundObject):
         options.setdefault('methods', ('GET',))
         self.url_map.add(Rule(rule, **options))
         if view_func is not None:
-            self.view_functions[endpoint] = view_func
+            self.view_functions[endpoint] = view_func    # 视图函数集合
 
+    #
+    # 关键接口: 路由装饰器
+    #   - 对比 flask-0.1, 代码作了重构, 使接口更加清晰
+    #
     def route(self, rule, **options):
         """A decorator that is used to register a view function for a
         given URL rule.  Example::
