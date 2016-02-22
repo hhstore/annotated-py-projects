@@ -430,9 +430,23 @@ class Flask(object):
         return self.wsgi_app(environ, start_response)
 
 
-# context locals
+###################################################################
+#                     全局上下文变量定义(context locals)
+# 说明:
+#   - 此处全局的 g, session, 需要深入理解
+#   - 需要深入去看 werkzeug.LocalStack() 的实现
+#   - 为了支持多线程, 线程无关的
+#
+###################################################################
+
 _request_ctx_stack = LocalStack()    # 依赖 werkzeug.LocalStack 模块
 current_app = LocalProxy(lambda: _request_ctx_stack.top.app)
 request = LocalProxy(lambda: _request_ctx_stack.top.request)
+
+
+# 特别注意此处实现:
+#   - g: 请求上下文 栈对象
+#   - session: 请求上下文 栈对象
+#
 session = LocalProxy(lambda: _request_ctx_stack.top.session)    # flash()函数 中 引用
 g = LocalProxy(lambda: _request_ctx_stack.top.g)
