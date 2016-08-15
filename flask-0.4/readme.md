@@ -24,12 +24,12 @@
 
 ### 2.2  flask 依赖模块:
 
-![依赖模块](images/Flask-Declaration.png])
+![依赖模块](images/Flask-Declaration.png)
 
 ### 2.3 flask 模块 UML 图:
 
 - 图1:
-![UML](images/Flask-UML-01.png])
+![UML](images/Flask-UML-01.png)
 
 - 图2:
 ![UML](images/Flask-UML-02.png)
