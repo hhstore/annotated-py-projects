@@ -16,17 +16,18 @@
 ![模块调用关系](images/Flask-ClusterCallInternal-02.png)
 ![模块调用关系](images/Flask-ClusterCallInternal-03.png)
 
-![images]()
 
 - flask 依赖模块:
 
-![](images/Flask-Declaration.png])
+![依赖模块](images/Flask-Declaration.png])
 
 - flask 模块 UML 图:
 
 ![UML](images/Flask-UML-01.png])
-![UML(images/Flask-UML-02.png])
-![UML(images/Flask-UML-03.png])
+
+![UML](images/Flask-UML-02.png)
+
+![UML](images/Flask-UML-03.png)
 
 
 ## Web 知识点补缺:
