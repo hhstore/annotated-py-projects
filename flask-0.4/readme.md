@@ -1,36 +1,44 @@
 
-## flask 0.4 版本说明:
+# flask 0.4 版本说明:
 
-### 1. 点评:
+## 1. 点评:
 
 - v0.4 版本, 是flask 项目, 单个文件,最后一个版本.
 - 代码很精简.值得打印阅读.
 
 
-### 2. 源码结构图:
+## 2. 源码结构图:
 
+### 2.1 flask 内部模块调用关系:
 
-- flask 内部模块调用关系:
+- 图1:
 
 ![模块调用关系](./images/Flask-ClusterCallInternal-01.png)
+
+- 图2:
 ![模块调用关系](images/Flask-ClusterCallInternal-02.png)
+
+- 图3:
 ![模块调用关系](images/Flask-ClusterCallInternal-03.png)
 
 
-- flask 依赖模块:
+### 2.2  flask 依赖模块:
 
 ![依赖模块](images/Flask-Declaration.png])
 
-- flask 模块 UML 图:
+### 2.3 flask 模块 UML 图:
 
+- 图1:
 ![UML](images/Flask-UML-01.png])
 
+- 图2:
 ![UML](images/Flask-UML-02.png)
 
+- 图3:
 ![UML](images/Flask-UML-03.png)
 
 
-## Web 知识点补缺:
+## 3. Web 知识点补缺:
 
 - [flask 中的 上下文 g, session 实现]()
 - [session 和 cookie 的区别和联系]()
@@ -42,7 +50,7 @@
 - [深入理解 `上下文` 概念]()
 
 
-## 源码阅读经验总结:
+## 4. 源码阅读经验总结:
 
 - 通读:
     - 第一步, 建立对代码的整体印象
