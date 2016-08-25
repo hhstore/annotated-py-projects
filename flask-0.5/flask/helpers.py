@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-    flask.helpers
-    ~~~~~~~~~~~~~
+flask.helpers 说明:
+    - 实现对外提供的核心的组件接口:
+        - jsonify()
+        - url_for()
+        - flash()
+        - get_flashed_message()
+    - Flask()基类定义:
+        - _PackageBoundObject()
 
-    Implements various helpers.
-
-    :copyright: (c) 2010 by Armin Ronacher.
-    :license: BSD, see LICENSE for more details.
 """
 
 import os
@@ -41,6 +43,7 @@ def _assert_have_json():
     if not json_available:
         raise RuntimeError('simplejson not installed')
 
+
 # figure out if simplejson escapes slashes.  This behaviour was changed
 # from one version to another without reason.
 if not json_available or '\\/' not in json.dumps('/'):
@@ -53,6 +56,15 @@ else:
     _tojson_filter = json.dumps
 
 
+###################################################################
+#                      flask 核心组件实现:
+# 说明:
+# - 注意模块化拆分
+#
+###################################################################
+
+
+# 安全的 json 序列化处理
 def jsonify(*args, **kwargs):
     """Creates a :class:`~flask.Response` with the JSON representation of
     the given arguments with an `application/json` mimetype.  The arguments
@@ -83,7 +95,7 @@ def jsonify(*args, **kwargs):
     if __debug__:
         _assert_have_json()
     return current_app.response_class(json.dumps(dict(*args, **kwargs),
-        indent=None if request.is_xhr else 2), mimetype='application/json')
+                                                 indent=None if request.is_xhr else 2), mimetype='application/json')
 
 
 def url_for(endpoint, **values):
@@ -145,41 +157,32 @@ def get_template_attribute(template_name, attribute):
                    attribute)
 
 
+# 刷写消息, 与 get_flashed_messages() 配对使用
 def flash(message, category='message'):
-    """Flashes a message to the next request.  In order to remove the
-    flashed message from the session and to display it to the user,
-    the template has to call :func:`get_flashed_messages`.
-
-    .. versionchanged: 0.3
-       `category` parameter added.
-
-    :param message: the message to be flashed.
-    :param category: the category for the message.  The following values
-                     are recommended: ``'message'`` for any kind of message,
-                     ``'error'`` for errors, ``'info'`` for information
-                     messages and ``'warning'`` for warnings.  However any
-                     kind of string can be used as category.
+    """ 将消息刷新到下次请求.
+        - 在模板文件中, 调用 get_flashed_messages(),
+        - 才可以将 消息(message) 从 session 中取出并显示给用户.
+    :param message: 待刷新的消息the message to be flashed.
+    :param category: 消息分类: [message, error, info, warning]
     """
     session.setdefault('_flashes', []).append((category, message))
 
 
+# 取出消息, 与 flash() 配对使用
 def get_flashed_messages(with_categories=False):
-    """Pulls all flashed messages from the session and returns them.
-    Further calls in the same request to the function will return
-    the same messages.  By default just the messages are returned,
-    but when `with_categories` is set to `True`, the return value will
-    be a list of tuples in the form ``(category, message)`` instead.
+    """从 session 中拉取消息, 并返回.
+        - 同一个请求, 调用本方法, 会返回相同的消息.
+        - 默认方式, 只是直接返回 所有的消息.
+        - with_categories参数有效时, 返回一个 元素为元组(category, message)的列表
 
     Example usage:
 
-    .. sourcecode:: html+jinja
+    .. sourcecode:: html+jinja (模板文件示例)
 
         {% for category, msg in get_flashed_messages(with_categories=true) %}
           <p class=flash-{{ category }}>{{ msg }}
         {% endfor %}
 
-    .. versionchanged:: 0.3
-       `with_categories` parameter added.
 
     :param with_categories: set to `True` to also receive categories.
     """
@@ -335,34 +338,43 @@ def _get_package_path(name):
         return os.getcwd()
 
 
+###################################################################
+#                      模块定义:
+###################################################################
+
+
 class _PackageBoundObject(object):
+    # 关键模块, Flask()类由此扩展
 
     def __init__(self, import_name):
         #: The name of the package or module.  Do not change this once
         #: it was set by the constructor.
+        # 定义 package 或 module 时的命名, 定义完, 不可以更改.
         self.import_name = import_name
 
         #: Where is the app root located?
+        # 定义 APP 的根目录:
         self.root_path = _get_package_path(self.import_name)
 
+    # 静态资源处理:
     @property
     def has_static_folder(self):
-        """This is `True` if the package bound object's container has a
-        folder named ``'static'``.
-
-        .. versionadded:: 0.5
+        """判断 App 根目录下,是否存在 'static'文件夹, 存在为真.
         """
         return os.path.isdir(os.path.join(self.root_path, 'static'))
 
+    # 模板资源处理:
     @cached_property
     def jinja_loader(self):
         """The Jinja loader for this package bound object.
 
         .. versionadded:: 0.5
         """
+        # 从 APP 根目录, 寻找 templates 模板目录
         template_folder = os.path.join(self.root_path, 'templates')
+
         if os.path.isdir(template_folder):
-            return FileSystemLoader(template_folder)
+            return FileSystemLoader(template_folder)  # 载入模板
 
     def send_static_file(self, filename):
         """Function used internally to send static files from the static
