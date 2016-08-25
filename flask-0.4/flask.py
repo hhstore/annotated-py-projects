@@ -22,7 +22,6 @@ flask: 微型web框架.
 
 """
 
-
 from __future__ import with_statement
 import os
 import sys
@@ -30,9 +29,9 @@ import mimetypes
 from datetime import datetime, timedelta
 
 from itertools import chain
-from threading import Lock     # 日志记录器 专用锁 - 引用
+from threading import Lock  # 日志记录器 专用锁 - 引用
 
-from jinja2 import (            # flask 部分模块实现,依赖 jinja2
+from jinja2 import (  # flask 部分模块实现,依赖 jinja2
     Environment,
     PackageLoader,
     FileSystemLoader
@@ -62,13 +61,12 @@ from werkzeug.contrib.securecookie import SecureCookie
 
 # utilities we import from Werkzeug and Jinja2 that are unused
 # in the module but are exported as public interface.
-from werkzeug import abort, redirect      # werkzeug 依赖: 本文件未使用,但导入以用作 对外接口
-from jinja2 import Markup, escape         # jinja2 的依赖: 本文件未使用,但导入以用作 对外接口
-
+from werkzeug import abort, redirect  # werkzeug 依赖: 本文件未使用,但导入以用作 对外接口
+from jinja2 import Markup, escape  # jinja2 的依赖: 本文件未使用,但导入以用作 对外接口
 
 # try to load the best simplejson implementation available.  If JSON
 # is not installed, we add a failing class.
-json_available = True       # json 支持, 备注: python2.x,某些版本不支持
+json_available = True  # json 支持, 备注: python2.x,某些版本不支持
 try:
     import simplejson as json
 except ImportError:
@@ -79,12 +77,12 @@ except ImportError:
 
 try:
     import pkg_resources
+
     pkg_resources.resource_stream
 except (ImportError, AttributeError):
     pkg_resources = None
 
-
-_logger_lock = Lock()    # 日志记录器 - 初始化 专用锁
+_logger_lock = Lock()  # 日志记录器 - 初始化 专用锁
 
 
 ################################################################################
@@ -147,6 +145,11 @@ class _RequestGlobals(object):
     pass
 
 
+###################################################################
+#                Session 实现部分
+#
+###################################################################
+
 class Session(SecureCookie):
     """Expands the session with support for switching between permanent
     and non-permanent sessions.
@@ -172,16 +175,22 @@ class _NullSession(Session):
         raise RuntimeError('the session is unavailable because no secret '
                            'key was set.  Set the secret_key on the '
                            'application to something unique and secret')
+
     __setitem__ = __delitem__ = clear = pop = popitem = \
         update = setdefault = _fail
     del _fail
 
 
+###################################################################
+#                  请求上下文定义部分
 #
-# 请求上下文: 超级关键, 非常重要
+# 说明:
+#   - 超级关键, 非常重要
 #   - 内部实现 请求上下文的 g, session
 #   - flask.request_context() 中 引用
 #
+###################################################################
+
 class _RequestContext(object):
     """The request context contains all request relevant information.  It is
     created at the beginning of the request and pushed to the
@@ -196,12 +205,12 @@ class _RequestContext(object):
         self.request = app.request_class(environ)
 
         # 会话(session) 实现:
-        self.session = app.open_session(self.request)    # 关键代码:  session: 请求上下文的 session 对象
+        self.session = app.open_session(self.request)  # 关键代码:  session: 请求上下文的 session 对象
         if self.session is None:
             self.session = _NullSession()
 
         # g 实现:
-        self.g = _RequestGlobals()     # g: 请求上下文的 g 对象
+        self.g = _RequestGlobals()  # g: 请求上下文的 g 对象
         self.flashes = None
 
         try:
@@ -217,7 +226,7 @@ class _RequestContext(object):
     #
     def push(self):
         """Binds the request context."""
-        _request_ctx_stack.push(self)    # 全局对象: 文件末尾定义
+        _request_ctx_stack.push(self)  # 全局对象: 文件末尾定义
 
     #
     # 出栈:
@@ -225,10 +234,10 @@ class _RequestContext(object):
     #
     def pop(self):
         """Pops the request context."""
-        _request_ctx_stack.pop()         # 全局对象: 文件末尾定义
+        _request_ctx_stack.pop()  # 全局对象: 文件末尾定义
 
     def __enter__(self):
-        self.push()        # 自动 入栈
+        self.push()  # 自动 入栈
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
@@ -237,8 +246,14 @@ class _RequestContext(object):
         # access the request object in the interactive shell.  Furthermore
         # the context can be force kept alive for the test client.
         if not self.request.environ.get('flask._preserve_context') and \
-           (tb is None or not self.app.debug):
-            self.pop()     # 自动 出栈
+                (tb is None or not self.app.debug):
+            self.pop()  # 自动 出栈
+
+
+###################################################################
+#                  组件定义部分
+#
+###################################################################
 
 
 def url_for(endpoint, **values):
@@ -376,7 +391,7 @@ def jsonify(*args, **kwargs):
     if __debug__:
         _assert_have_json()
     return current_app.response_class(json.dumps(dict(*args, **kwargs),
-        indent=None if request.is_xhr else 2), mimetype='application/json')
+                                                 indent=None if request.is_xhr else 2), mimetype='application/json')
 
 
 def send_file(filename_or_fp, mimetype=None, as_attachment=False,
@@ -514,8 +529,13 @@ else:
     _tojson_filter = json.dumps
 
 
-class _PackageBoundObject(object):
+###################################################################
+#               核心 Module() 类定义部分
+#
+###################################################################
 
+
+class _PackageBoundObject(object):
     def __init__(self, import_name):
         #: The name of the package or module.  Do not change this once
         #: it was set by the constructor.
@@ -552,7 +572,6 @@ class _PackageBoundObject(object):
 
 
 class _ModuleSetupState(object):
-
     def __init__(self, app, url_prefix=None):
         self.app = app
         self.url_prefix = url_prefix
@@ -609,7 +628,7 @@ class Module(_PackageBoundObject):
     def __init__(self, import_name, name=None, url_prefix=None):
         if name is None:
             assert '.' in import_name, 'name required if package name ' \
-                'does not point to a submodule'
+                                       'does not point to a submodule'
             name = import_name.rsplit('.', 1)[1]
         _PackageBoundObject.__init__(self, import_name)
         self.name = name
@@ -620,21 +639,25 @@ class Module(_PackageBoundObject):
         """Like :meth:`Flask.route` but for a module.  The endpoint for the
         :func:`url_for` function is prefixed with the name of the module.
         """
+
         def decorator(f):
             self.add_url_rule(rule, f.__name__, f, **options)
             return f
+
         return decorator
 
     def add_url_rule(self, rule, endpoint, view_func=None, **options):
         """Like :meth:`Flask.add_url_rule` but for a module.  The endpoint for
         the :func:`url_for` function is prefixed with the name of the module.
         """
+
         def register_rule(state):
             the_rule = rule
             if state.url_prefix:
                 the_rule = state.url_prefix + rule
             state.app.add_url_rule(the_rule, '%s.%s' % (self.name, endpoint),
                                    view_func, **options)
+
         self._record(register_rule)
 
     def before_request(self, f):
@@ -643,7 +666,7 @@ class Module(_PackageBoundObject):
         that module.
         """
         self._record(lambda s: s.app.before_request_funcs
-            .setdefault(self.name, []).append(f))
+                     .setdefault(self.name, []).append(f))
         return f
 
     def before_app_request(self, f):
@@ -651,7 +674,7 @@ class Module(_PackageBoundObject):
         before each request, even if outside of a module.
         """
         self._record(lambda s: s.app.before_request_funcs
-            .setdefault(None, []).append(f))
+                     .setdefault(None, []).append(f))
         return f
 
     def after_request(self, f):
@@ -660,7 +683,7 @@ class Module(_PackageBoundObject):
         that module.
         """
         self._record(lambda s: s.app.after_request_funcs
-            .setdefault(self.name, []).append(f))
+                     .setdefault(self.name, []).append(f))
         return f
 
     def after_app_request(self, f):
@@ -668,7 +691,7 @@ class Module(_PackageBoundObject):
         is executed after each request, even if outside of the module.
         """
         self._record(lambda s: s.app.after_request_funcs
-            .setdefault(None, []).append(f))
+                     .setdefault(None, []).append(f))
         return f
 
     def context_processor(self, f):
@@ -676,7 +699,7 @@ class Module(_PackageBoundObject):
         function is only executed for requests handled by a module.
         """
         self._record(lambda s: s.app.template_context_processors
-            .setdefault(self.name, []).append(f))
+                     .setdefault(self.name, []).append(f))
         return f
 
     def app_context_processor(self, f):
@@ -684,7 +707,7 @@ class Module(_PackageBoundObject):
         function is executed each request, even if outside of the module.
         """
         self._record(lambda s: s.app.template_context_processors
-            .setdefault(None, []).append(f))
+                     .setdefault(None, []).append(f))
         return f
 
     def app_errorhandler(self, code):
@@ -693,13 +716,21 @@ class Module(_PackageBoundObject):
 
         .. versionadded:: 0.4
         """
+
         def decorator(f):
             self._record(lambda s: s.app.errorhandler(code)(f))
             return f
+
         return decorator
 
     def _record(self, func):
         self._register_events.append(func)
+
+
+###################################################################
+#               核心 Config() 类定义部分
+#
+###################################################################
 
 
 class ConfigAttribute(object):
@@ -837,6 +868,12 @@ class Config(dict):
         return '<%s %s>' % (self.__class__.__name__, dict.__repr__(self))
 
 
+###################################################################
+#               核心 Flask() 类定义部分
+#
+###################################################################
+
+
 class Flask(_PackageBoundObject):
     """The flask object implements a WSGI application and acts as the central
     object.  It is passed the name of the module or package of the
@@ -947,13 +984,13 @@ class Flask(_PackageBoundObject):
 
     #: Default configuration parameters.
     default_config = ImmutableDict({
-        'DEBUG':                                False,
-        'TESTING':                              False,
-        'SECRET_KEY':                           None,
-        'SESSION_COOKIE_NAME':                  'session',
-        'PERMANENT_SESSION_LIFETIME':           timedelta(days=31),
-        'USE_X_SENDFILE':                       False,
-        'LOGGER_NAME':                          None
+        'DEBUG': False,
+        'TESTING': False,
+        'SECRET_KEY': None,
+        'SESSION_COOKIE_NAME': 'session',
+        'PERMANENT_SESSION_LIFETIME': timedelta(days=31),
+        'USE_X_SENDFILE': False,
+        'LOGGER_NAME': None
     })
 
     def __init__(self, import_name):
@@ -1069,7 +1106,7 @@ class Flask(_PackageBoundObject):
             #   - 局部导入: 防止出现循环导入
             #
             from logging import getLogger, StreamHandler, Formatter, \
-                                Logger,  DEBUG
+                Logger, DEBUG
 
             class DebugLogger(Logger):
                 def getEffectiveLevel(x):
@@ -1080,7 +1117,7 @@ class Flask(_PackageBoundObject):
                     StreamHandler.emit(x, record) if self.debug else None
 
             handler = DebugHandler()
-            handler.setLevel(DEBUG)    # 日志级别
+            handler.setLevel(DEBUG)  # 日志级别
             handler.setFormatter(Formatter(self.debug_log_format))
             logger = getLogger(self.logger_name)
 
@@ -1125,7 +1162,7 @@ class Flask(_PackageBoundObject):
                         Werkzeug server.  See :func:`werkzeug.run_simple`
                         for more information.
         """
-        from werkzeug import run_simple    # 局部导入: 防止 循环导入
+        from werkzeug import run_simple  # 局部导入: 防止 循环导入
         if 'debug' in options:
             self.debug = options.pop('debug')
         options.setdefault('use_reloader', self.debug)
@@ -1147,9 +1184,10 @@ class Flask(_PackageBoundObject):
         .. versionchanged:: 0.4
            added support for `with` block usage for the client.
         """
-        from werkzeug import Client       # 局部导入: 防止 循环导入
+        from werkzeug import Client  # 局部导入: 防止 循环导入
         class FlaskClient(Client):
             preserve_context = context_preserved = False
+
             def open(self, *args, **kwargs):
                 if self.context_preserved:
                     _request_ctx_stack.pop()
@@ -1161,13 +1199,16 @@ class Flask(_PackageBoundObject):
                     return Client.open(self, *args, **kwargs)
                 finally:
                     self.context_preserved = _request_ctx_stack.top is not old
+
             def __enter__(self):
                 self.preserve_context = True
                 return self
+
             def __exit__(self, exc_type, exc_value, tb):
                 self.preserve_context = False
                 if self.context_preserved:
                     _request_ctx_stack.pop()
+
         return FlaskClient(self, self.response_class, use_cookies=True)
 
     #
@@ -1258,7 +1299,7 @@ class Flask(_PackageBoundObject):
         options.setdefault('methods', ('GET',))
         self.url_map.add(Rule(rule, **options))
         if view_func is not None:
-            self.view_functions[endpoint] = view_func    # 视图函数集合
+            self.view_functions[endpoint] = view_func  # 视图函数集合
 
     #
     # 关键接口: 路由装饰器
@@ -1329,9 +1370,11 @@ class Flask(_PackageBoundObject):
         :param options: other options to be forwarded to the underlying
                         :class:`~werkzeug.routing.Rule` object.
         """
+
         def decorator(f):
             self.add_url_rule(rule, None, f, **options)
             return f
+
         return decorator
 
     def errorhandler(self, code):
@@ -1352,9 +1395,11 @@ class Flask(_PackageBoundObject):
 
         :param code: the code as integer for the handler
         """
+
         def decorator(f):
             self.error_handlers[code] = f
             return f
+
         return decorator
 
     def template_filter(self, name=None):
@@ -1369,9 +1414,11 @@ class Flask(_PackageBoundObject):
         :param name: the optional name of the filter, otherwise the
                      function name will be used.
         """
+
         def decorator(f):
             self.jinja_env.filters[name or f.__name__] = f
             return f
+
         return decorator
 
     def before_request(self, f):
@@ -1549,7 +1596,7 @@ class Flask(_PackageBoundObject):
                                a list of headers and an optional
                                exception context to start the response
         """
-        with self.request_context(environ):     # 入口: 请求上下文
+        with self.request_context(environ):  # 入口: 请求上下文
             #
             #  middleware 部分:(以下代码)
             #   - 获取请求(request)
@@ -1569,7 +1616,7 @@ class Flask(_PackageBoundObject):
             except Exception, e:
                 response = self.make_response(self.handle_exception(e))
 
-            return response(environ, start_response)   # 出口: 返回响应
+            return response(environ, start_response)  # 出口: 返回响应
 
     #
     # 关键接口: 请求上下文
@@ -1611,7 +1658,7 @@ class Flask(_PackageBoundObject):
 
         :param environ: a WSGI environment
         """
-        return _RequestContext(self, environ)    # 关键类
+        return _RequestContext(self, environ)  # 关键类
 
     def test_request_context(self, *args, **kwargs):
         """Creates a WSGI environment from the given values (see
@@ -1623,6 +1670,16 @@ class Flask(_PackageBoundObject):
     def __call__(self, environ, start_response):
         """Shortcut for :attr:`wsgi_app`."""
         return self.wsgi_app(environ, start_response)
+
+
+###################################################################
+#               全局变量 定义部分
+# 说明:
+#   - 关键部分
+#   - 请求上下文对象
+#   - 全局对象
+#
+###################################################################
 
 
 # context locals
@@ -1639,15 +1696,13 @@ _request_ctx_stack = LocalStack()
 #   - 应用级别: 数据隔离
 #   - 多个app之间(app1, app2), 数据是相互隔离的
 #
-current_app = LocalProxy(lambda: _request_ctx_stack.top.app)    # 应用上下文: current_app
-g = LocalProxy(lambda: _request_ctx_stack.top.g)                # 应用上下文: g 对象
-
+current_app = LocalProxy(lambda: _request_ctx_stack.top.app)  # 应用上下文: current_app
+g = LocalProxy(lambda: _request_ctx_stack.top.g)              # 应用上下文: g 对象
 
 #
 # 请求级上下文:
 #   - 请求级别: 数据隔离
 #   - 多个请求之间, 数据是隔离开的
 #
-request = LocalProxy(lambda: _request_ctx_stack.top.request)    # 请求上下文: request
-session = LocalProxy(lambda: _request_ctx_stack.top.session)    # 请求上下文: 会话(session)
-
+request = LocalProxy(lambda: _request_ctx_stack.top.request)  # 请求上下文: request
+session = LocalProxy(lambda: _request_ctx_stack.top.session)  # 请求上下文: 会话(session)
