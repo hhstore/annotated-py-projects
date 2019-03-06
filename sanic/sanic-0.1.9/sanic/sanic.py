@@ -1,0 +1,432 @@
+from asyncio import get_event_loop    # 关键
+from collections import deque
+from functools import partial
+from inspect import isawaitable, stack, getmodulename
+from multiprocessing import Process, Event     # 关键
+from signal import signal, SIGTERM, SIGINT     # 关键
+from time import sleep
+from traceback import format_exc
+
+
+#########################################
+#           框架自带模块
+#
+#########################################
+from .config import Config
+from .exceptions import Handler
+from .log import log, logging
+from .response import HTTPResponse
+from .router import Router                          # 路由装饰器实现的关键依赖
+from .server import serve
+from .static import register as static_register     # 异步实现, 文件服务器
+from .exceptions import ServerError
+
+
+#########################################
+#             项目入口
+#
+# 接口:
+#   - route : 路由装饰器
+#
+#
+#########################################
+class Sanic:
+    def __init__(self, name=None, router=None, error_handler=None):
+        if name is None:
+            frame_records = stack()[1]
+            name = getmodulename(frame_records[1])
+        self.name = name
+        self.router = router or Router()                      # 路由
+        self.error_handler = error_handler or Handler(self)   # 错误处理
+        self.config = Config()                                # 默认配置项
+        self.request_middleware = deque()                     # 请求中间件
+        self.response_middleware = deque()                    # 响应中间件
+        self.blueprints = {}                                  # 蓝图
+        self._blueprint_order = []
+        self.loop = None
+        self.debug = None
+
+        # Register alternative method names
+        self.go_fast = self.run
+
+    # -------------------------------------------------------------------- #
+    # Registration
+    # -------------------------------------------------------------------- #
+
+    #
+    # 路由处理装饰器:
+    #   - 核心接口. 此部分实现, 非常优雅
+    #   - 此装饰器实现, 依赖: sanic.router.Router() 类定义的接口
+    #
+    # Decorator
+    def route(self, uri, methods=None):
+        """
+        Decorates a function to be registered as a route
+        :param uri: path of the URL
+        :param methods: list or tuple of methods allowed
+        :return: decorated function
+        """
+
+        # Fix case where the user did not prefix the URL with a /
+        # and will probably get confused as to why it's not working
+        if not uri.startswith('/'):
+            uri = '/' + uri
+
+        def response(handler):
+            self.router.add(uri=uri, methods=methods, handler=handler)    # 路由添加, 依赖: sanic.router.Router()
+            return handler
+
+        return response
+
+    #
+    # 路由添加:
+    #
+    def add_route(self, handler, uri, methods=None):
+        """
+        A helper method to register class instance or
+        functions as a handler to the application url
+        routes.
+        :param handler: function or class instance
+        :param uri: path of the URL
+        :param methods: list or tuple of methods allowed
+        :return: function or class instance
+        """
+        self.route(uri=uri, methods=methods)(handler)      # 调用上面的 路由装饰器
+        return handler
+
+    #
+    # 异常处理装饰器:
+    #
+    # Decorator
+    def exception(self, *exceptions):
+        """
+        Decorates a function to be registered as a handler for exceptions
+        :param *exceptions: exceptions
+        :return: decorated function
+        """
+
+        def response(handler):
+            for exception in exceptions:
+                self.error_handler.add(exception, handler)     # 添加错误处理 handler
+            return handler
+
+        return response
+
+    #
+    # 中间件装饰器:
+    #
+    # Decorator
+    def middleware(self, *args, **kwargs):
+        """
+        Decorates and registers middleware to be called before a request
+        can either be called as @app.middleware or @app.middleware('request')
+        """
+        attach_to = 'request'
+
+        def register_middleware(middleware):
+            if attach_to == 'request':
+                self.request_middleware.append(middleware)
+            if attach_to == 'response':
+                self.response_middleware.appendleft(middleware)
+            return middleware
+
+        # Detect which way this was called, @middleware or @middleware('AT')
+        if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
+            return register_middleware(args[0])           # 注册中间件
+        else:
+            attach_to = args[0]
+            return register_middleware    # 注册中间件
+
+    #
+    # 静态文件处理:
+    #   - 异步实现, 代码值得深入阅读
+    #   - 注册一个根路径, 处理静态资源
+    #
+    # Static Files
+    def static(self, uri, file_or_directory, pattern='.+',
+               use_modified_since=True):
+        """
+        Registers a root to serve files from.  The input can either be a file
+        or a directory.  See
+        """
+        # 异步实现:
+        static_register(self, uri, file_or_directory, pattern,
+                        use_modified_since)
+
+    #
+    # 蓝图:
+    #   - 注册一个 blueprint 到 应用.
+    #
+    def blueprint(self, blueprint, **options):
+        """
+        Registers a blueprint on the application.
+        :param blueprint: Blueprint object
+        :param options: option dictionary with blueprint defaults
+        :return: Nothing
+        """
+        if blueprint.name in self.blueprints:
+            assert self.blueprints[blueprint.name] is blueprint, \
+                'A blueprint with the name "%s" is already registered.  ' \
+                'Blueprint names must be unique.' % \
+                (blueprint.name,)
+        else:
+            self.blueprints[blueprint.name] = blueprint
+            self._blueprint_order.append(blueprint)     # 蓝图注册顺序
+        blueprint.register(self, options)
+
+    #
+    # (已废弃接口)蓝图注册:
+    #   - 将在1.0版本中, 废弃此接口, 请使用 blueprint() 替代.
+    #
+    def register_blueprint(self, *args, **kwargs):
+        # TODO: deprecate 1.0
+        log.warning("Use of register_blueprint will be deprecated in "
+                    "version 1.0.  Please use the blueprint method instead")
+        return self.blueprint(*args, **kwargs)
+
+    # -------------------------------------------------------------------- #
+    # Request Handling
+    # -------------------------------------------------------------------- #
+
+    def converted_response_type(self, response):
+        pass
+
+    #
+    # 异步实现: 请求处理
+    #   - 核心方法.
+    #   - 从 HTTP 服务器拿到请求, 返回响应对象.
+    #   - 包含异常处理.
+    #   - 注意参数: response_callback
+    #
+    async def handle_request(self, request, response_callback):
+        """
+        Takes a request from the HTTP Server and returns a response object to
+        be sent back The HTTP Server only expects a response object, so
+        exception handling must be done here
+        :param request: HTTP Request object
+        :param response_callback: Response function to be called with the
+        response as the only argument
+        :return: Nothing
+        """
+        try:
+            # -------------------------------------------- #
+            # Request Middleware    (请求中间件)
+            # -------------------------------------------- #
+
+            response = False
+            # The if improves speed.  I don't know why
+            if self.request_middleware:
+                # 遍历 请求中间件列表, 逐个处理
+                for middleware in self.request_middleware:
+                    response = middleware(request)  # 中间件处理
+
+                    # 判断是否是异步返回:
+                    if isawaitable(response):
+                        response = await response   # 异步返回
+                    if response:
+                        break
+
+            #
+            # 无中间件处理结果
+            #
+            # No middleware results
+            if not response:
+                # -------------------------------------------- #
+                # Execute Handler
+                # -------------------------------------------- #
+
+                # Fetch handler from router
+                handler, args, kwargs = self.router.get(request)
+                if handler is None:
+                    raise ServerError(
+                        ("'None' was returned while requesting a "
+                         "handler from the router"))
+
+                # Run response handler
+                response = handler(request, *args, **kwargs)
+                if isawaitable(response):
+                    response = await response       # 异步返回
+
+            # -------------------------------------------- #
+            # Response Middleware    (响应中间件)
+            # -------------------------------------------- #
+
+            if self.response_middleware:
+                # 遍历 响应中间件列表
+                for middleware in self.response_middleware:
+                    _response = middleware(request, response)
+                    if isawaitable(_response):
+                        _response = await _response     # 异步返回
+                    if _response:
+                        response = _response
+                        break
+
+        except Exception as e:
+            # -------------------------------------------- #
+            # Response Generation Failed (响应生成失败)
+            # -------------------------------------------- #
+
+            try:
+                response = self.error_handler.response(request, e)    # 异常处理部分
+                if isawaitable(response):
+                    response = await response   # 异步返回: 异常
+            except Exception as e:
+                if self.debug:
+                    response = HTTPResponse(
+                        "Error while handling error: {}\nStack: {}".format(
+                            e, format_exc()))
+                else:
+                    response = HTTPResponse(
+                        "An error occured while handling an error")
+
+        response_callback(response)    # 回调函数处理
+
+    # -------------------------------------------------------------------- #
+    # Execution
+    # -------------------------------------------------------------------- #
+
+    # -------------------------------------------------------------------- #
+    #                     框架启动入口:
+    #   - 单进程: 协程实现
+    #   - 多进程: 多进程+协程实现
+    # -------------------------------------------------------------------- #
+    def run(self, host="127.0.0.1", port=8000, debug=False, before_start=None,
+            after_start=None, before_stop=None, after_stop=None, sock=None,
+            workers=1, loop=None):
+        """
+        Runs the HTTP Server and listens until keyboard interrupt or term
+        signal. On termination, drains connections before closing.
+        :param host: Address to host on
+        :param port: Port to host on
+        :param debug: Enables debug output (slows server)
+        :param before_start: Function to be executed before the server starts
+        accepting connections
+        :param after_start: Function to be executed after the server starts
+        accepting connections
+        :param before_stop: Function to be executed when a stop signal is
+        received before it is respected
+        :param after_stop: Function to be executed when all requests are
+        complete
+        :param sock: Socket for the server to accept connections from
+        :param workers: Number of processes
+        received before it is respected
+        :param loop: asyncio compatible event loop
+        :return: Nothing
+        """
+        self.error_handler.debug = True
+        self.debug = debug
+        self.loop = loop      # 事件处理器
+
+        server_settings = {
+            'host': host,
+            'port': port,
+            'sock': sock,
+            'debug': debug,
+            'request_handler': self.handle_request,    # 请求处理, 注意参数: response_callback
+            'error_handler': self.error_handler,       # 错误处理
+            'request_timeout': self.config.REQUEST_TIMEOUT,
+            'request_max_size': self.config.REQUEST_MAX_SIZE,
+            'loop': loop
+        }
+
+        # -------------------------------------------- #
+        # Register start/stop events
+        # -------------------------------------------- #
+
+        for event_name, settings_name, args, reverse in (
+                ("before_server_start", "before_start", before_start, False),
+                ("after_server_start", "after_start", after_start, False),
+                ("before_server_stop", "before_stop", before_stop, True),
+                ("after_server_stop", "after_stop", after_stop, True),
+                ):
+            listeners = []
+            for blueprint in self.blueprints.values():
+                listeners += blueprint.listeners[event_name]
+            if args:
+                if type(args) is not list:
+                    args = [args]
+                listeners += args
+            if reverse:
+                listeners.reverse()
+            # Prepend sanic to the arguments when listeners are triggered
+            listeners = [partial(listener, self) for listener in listeners]
+            server_settings[settings_name] = listeners
+
+        if debug:
+            log.setLevel(logging.DEBUG)
+        log.debug(self.config.LOGO)
+
+        # -------------------------------------------- #
+        #          启动服务进程
+        # -------------------------------------------- #
+        # Serve
+        log.info('Goin\' Fast @ http://{}:{}'.format(host, port))
+
+        try:
+            if workers == 1:
+                serve(**server_settings)     # 单实例启动
+            else:
+                log.info('Spinning up {} workers...'.format(workers))
+
+                self.serve_multiple(server_settings, workers)     # 多进程+协程serve()实现
+
+        except Exception as e:
+            log.exception(
+                'Experienced exception while trying to serve')
+
+        log.info("Server Stopped")
+
+    #
+    # 服务器退出:
+    #
+    def stop(self):
+        """
+        This kills the Sanic
+        """
+        get_event_loop().stop()      # asyncio 模块实现
+
+    #
+    # 多实例启动服务器:
+    #   - 多进程+协程
+    #   - 内部调用依然是: serve()
+    #
+    @staticmethod
+    def serve_multiple(server_settings, workers, stop_event=None):
+        """
+        Starts multiple server processes simultaneously.  Stops on interrupt
+        and terminate signals, and drains connections when complete.
+        :param server_settings: kw arguments to be passed to the serve function
+        :param workers: number of workers to launch
+        :param stop_event: if provided, is used as a stop signal
+        :return:
+        """
+        server_settings['reuse_port'] = True
+
+        # Create a stop event to be triggered by a signal
+        if not stop_event:
+            stop_event = Event()
+        signal(SIGINT, lambda s, f: stop_event.set())
+        signal(SIGTERM, lambda s, f: stop_event.set())
+
+        #
+        # 多进程启动:
+        #
+        processes = []
+        for _ in range(workers):
+            process = Process(target=serve, kwargs=server_settings)    # 创建一个进程, 注意内部依然是 serve() 协程实现
+            process.start()   # 进程启动
+            processes.append(process)
+
+        # Infinitely wait for the stop event
+        try:
+            while not stop_event.is_set():
+                sleep(0.3)
+        except:
+            pass
+
+        log.info('Spinning down workers...')
+        for process in processes:
+            process.terminate()      # 多进程
+
+        for process in processes:
+            process.join()           # 多进程

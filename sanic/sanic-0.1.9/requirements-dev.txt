@@ -1,0 +1,14 @@
+httptools
+ujson
+uvloop
+aiohttp
+aiocache
+pytest
+coverage
+tox
+gunicorn
+bottle
+kyoukai
+falcon
+tornado
+aiofiles
