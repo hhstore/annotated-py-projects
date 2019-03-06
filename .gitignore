@@ -99,8 +99,10 @@ _mailinglist
 *website/
 *artwork/
 *docs/
-*tests/
-*examples/
+
+# 测试和示例代码, 可以辅助理解项目源码:
+#*tests/
+#*examples/
 *scripts/
 
 # 0.10.1
