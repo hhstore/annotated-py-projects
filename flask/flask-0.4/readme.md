@@ -13,7 +13,7 @@
 
 - 图1:
 
-![模块调用关系](./images/Flask-ClusterCallInternal-01.png)
+![模块调用关系](images/Flask-ClusterCallInternal-01.png)
 
 - 图2:
 ![模块调用关系](images/Flask-ClusterCallInternal-02.png)
