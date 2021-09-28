@@ -1,4 +1,4 @@
-# related:
+# Related:
 
 - [x] discord 技术交流群: https://discord.com/invite/MnDA9pfWAW
     - 🔥🔥🔥🔥🔥 欢迎加群交流(Go/Flutter/Rust/Python 等技术)
