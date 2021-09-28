@@ -1,3 +1,12 @@
+# related:
+
+- [x] discord 技术交流群: https://discord.com/invite/MnDA9pfWAW
+    - 🔥🔥🔥🔥🔥 欢迎加群交流(Go/Flutter/Rust/Python 等技术)
+- [x] https://github.com/hhstore/blog
+    - 我的技术博客, 有大量 Go/Flutter/Python 技术文章 
+- [x] https://github.com/hhstore/annotated-py-pickledb
+- [x] https://github.com/hhstore/annotated-go-macaron
+    - 一个类似 gin 的 go web 框架 
 
 # Python 知名项目源码 阅读+注解
 
