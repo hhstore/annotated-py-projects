@@ -1,9 +1,13 @@
 # Related:
 
-- [x] discord 技术交流群: https://discord.com/invite/MnDA9pfWAW
+- [x] 技术交流群: 
+    - discord: https://discord.com/invite/MnDA9pfWAW
+    - telegram: https://t.me/gossipcoder
     - 🔥🔥🔥🔥🔥 欢迎加群交流(Go/Flutter/Rust/Python 等技术)
 - [x] https://github.com/hhstore/blog
-    - 我的技术博客, 有大量 Go/Flutter/Python 技术文章 
+    - 我的技术博客, 有大量 Rust/Go/Flutter/Python 技术文章 
+- [x] https://github.com/better-rs/annotated-rs
+    - Rust 知名项目注解(Substrate/Tokio 等)
 - [x] https://github.com/hhstore/annotated-py-pickledb
 - [x] https://github.com/hhstore/annotated-go-macaron
     - 一个类似 gin 的 go web 框架 
