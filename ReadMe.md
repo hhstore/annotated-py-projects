@@ -44,7 +44,7 @@
 | [sanic](./sanic)       | web 框架     |  Python3 异步框架, v0.1.9   |
 | [bottle](./bottle)     | web 框架     |  知名项目, v0.4.10, 注解非常详细   |
 | [webpy](./webpy)       | web 框架     |  知名项目, v0.1   |
-| [xxx](./xxx)   | web 框架     |  知名项目, 注解非常详细   |
+| [tornado](https://github.com/better-py/annotated-py-tornado)   | web 框架     |  知名项目, v1.0等   |
 | [xxx](./xxx)   | web 框架     |  知名项目, 注解非常详细   |
 | [xxx](./xxx)   | web 框架     |  知名项目, 注解非常详细   |
 | [xxx](./xxx)   | web 框架     |  知名项目, 注解非常详细   |
