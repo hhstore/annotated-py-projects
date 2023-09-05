@@ -1,0 +1,105 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "starlette"
+dynamic = ["version"]
+description = "The little ASGI library that shines."
+readme = "README.md"
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+authors = [
+    { name = "Tom Christie", email = "tom@tomchristie.com" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: AnyIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+]
+dependencies = [
+    "anyio>=3.4.0,<5",
+    "typing_extensions>=3.10.0; python_version < '3.10'",
+]
+
+[project.optional-dependencies]
+full = [
+    "itsdangerous",
+    "jinja2",
+    "python-multipart",
+    "pyyaml",
+    "httpx>=0.22.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/encode/starlette"
+Documentation = "https://www.starlette.io/"
+Changelog = "https://www.starlette.io/release-notes/"
+Funding = "https://github.com/sponsors/encode"
+Source = "https://github.com/encode/starlette"
+
+[tool.hatch.version]
+path = "starlette/__init__.py"
+
+[tool.ruff]
+select = ["E", "F", "I"]
+
+[tool.ruff.isort]
+combine-as-imports = true
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+python_version = "3.8"
+
+[[tool.mypy.overrides]]
+module = "starlette.testclient.*"
+implicit_optional = true
+
+# TODO: Uncomment the following configuration when
+# https://github.com/python/mypy/issues/10045 is solved. In the meantime,
+# we are calling `mypy tests` directly. Check `scripts/check` for more info.
+# [[tool.mypy.overrides]]
+# module = "tests.*"
+# disallow_untyped_defs = false
+# check_untyped_defs = true
+
+[tool.pytest.ini_options]
+addopts = "-rxXs --strict-config --strict-markers"
+xfail_strict = true
+filterwarnings = [
+    # Turn warnings that aren't filtered into exceptions
+    "error",
+    "ignore: run_until_first_complete is deprecated and will be removed in a future version.:DeprecationWarning",
+    "ignore: starlette.middleware.wsgi is deprecated and will be removed in a future release.*:DeprecationWarning",
+    "ignore: Async generator 'starlette.requests.Request.stream' was garbage collected before it had been exhausted.*:ResourceWarning",
+    "ignore: path is deprecated.*:DeprecationWarning:certifi",
+    "ignore: Use 'content=<...>' to upload raw bytes/text content.:DeprecationWarning",
+    "ignore: The `allow_redirects` argument is deprecated. Use `follow_redirects` instead.:DeprecationWarning",
+    "ignore: 'cgi' is deprecated and slated for removal in Python 3.13:DeprecationWarning",
+    "ignore: You seem to already have a custom sys.excepthook handler installed. I'll skip installing Trio's custom handler, but this means MultiErrors will not show full tracebacks.:RuntimeWarning",
+]
+
+[tool.coverage.run]
+source_pkgs = [
+    "starlette",
+    "tests",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: nocover",
+    "if typing.TYPE_CHECKING:",
+    "@typing.overload",
+]
