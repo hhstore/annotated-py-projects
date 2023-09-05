@@ -212,7 +212,13 @@ class Route(BaseRoute):
     def __init__(
         self,
         path: str,
+
+        ########################################################################
+        #
+        #
+        #
         endpoint: typing.Callable[..., typing.Any],
+
         *,
         methods: typing.Optional[typing.List[str]] = None,
         name: typing.Optional[str] = None,
@@ -220,14 +226,32 @@ class Route(BaseRoute):
     ) -> None:
         assert path.startswith("/"), "Routed paths must start with '/'"
         self.path = path
+
+        #
+        #
+        #
         self.endpoint = endpoint
         self.name = get_name(endpoint) if name is None else name
         self.include_in_schema = include_in_schema
 
+        #
+        #
+        #
         endpoint_handler = endpoint
+
+        ########################################################################
+
+        #
+        #
+        #
         while isinstance(endpoint_handler, functools.partial):
             endpoint_handler = endpoint_handler.func
+
         if inspect.isfunction(endpoint_handler) or inspect.ismethod(endpoint_handler):
+
+            #
+            #
+            #
             # Endpoint is function or method. Treat it as `func(request) -> response`.
             self.app = request_response(endpoint)
             if methods is None:
@@ -245,7 +269,15 @@ class Route(BaseRoute):
 
         self.path_regex, self.path_format, self.param_convertors = compile_path(path)
 
+    ########################################################################
+    #
+    #
+    #
     def matches(self, scope: Scope) -> typing.Tuple[Match, Scope]:
+
+        #
+        #
+        #
         if scope["type"] == "http":
             match = self.path_regex.match(scope["path"])
             if match:
@@ -311,10 +343,19 @@ class Route(BaseRoute):
         return f"{class_name}(path={path!r}, name={name!r}, methods={methods!r})"
 
 
+########################################################################
+
+#
+# ws: WebSocketRoute
+#
 class WebSocketRoute(BaseRoute):
     def __init__(
         self,
         path: str,
+
+        #
+        #
+        #
         endpoint: typing.Callable[..., typing.Any],
         *,
         name: typing.Optional[str] = None,
@@ -324,6 +365,10 @@ class WebSocketRoute(BaseRoute):
         self.endpoint = endpoint
         self.name = get_name(endpoint) if name is None else name
 
+        ########################################################################
+        #
+        #
+        #
         endpoint_handler = endpoint
         while isinstance(endpoint_handler, functools.partial):
             endpoint_handler = endpoint_handler.func
@@ -336,7 +381,15 @@ class WebSocketRoute(BaseRoute):
 
         self.path_regex, self.path_format, self.param_convertors = compile_path(path)
 
+    ########################################################################
+    #
+    #
+    #
     def matches(self, scope: Scope) -> typing.Tuple[Match, Scope]:
+
+        #
+        #
+        #
         if scope["type"] == "websocket":
             match = self.path_regex.match(scope["path"])
             if match:
