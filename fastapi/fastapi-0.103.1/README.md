@@ -63,3 +63,8 @@
 └── websockets.py
 
 ```
+
+## 核心链路/模块:
+
+- [fastapi/applications.py](fastapi/applications.py)
+

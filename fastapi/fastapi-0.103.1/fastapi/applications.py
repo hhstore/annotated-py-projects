@@ -47,53 +47,63 @@ from starlette.types import ASGIApp, Lifespan, Receive, Scope, Send
 AppType = TypeVar("AppType", bound="FastAPI")
 
 
+########################################################################
+
+#
+#  todo x: 框架入口
+#   - fastapi 很多能力, 都是基于 starlette + wrapper 实现的.
+#       - on_event, on_startup, on_shutdown
+#       - middleware, websocket_session
+#       - exception_handlers
+#   - fastapi 的强大, 更多是 starlette 强大.
+#
 class FastAPI(Starlette):
     def __init__(
-        self: AppType,
-        *,
-        debug: bool = False,
-        routes: Optional[List[BaseRoute]] = None,
-        title: str = "FastAPI",
-        summary: Optional[str] = None,
-        description: str = "",
-        version: str = "0.1.0",
-        openapi_url: Optional[str] = "/openapi.json",
-        openapi_tags: Optional[List[Dict[str, Any]]] = None,
-        servers: Optional[List[Dict[str, Union[str, Any]]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        default_response_class: Type[Response] = Default(JSONResponse),
-        redirect_slashes: bool = True,
-        docs_url: Optional[str] = "/docs",
-        redoc_url: Optional[str] = "/redoc",
-        swagger_ui_oauth2_redirect_url: Optional[str] = "/docs/oauth2-redirect",
-        swagger_ui_init_oauth: Optional[Dict[str, Any]] = None,
-        middleware: Optional[Sequence[Middleware]] = None,
-        exception_handlers: Optional[
-            Dict[
-                Union[int, Type[Exception]],
-                Callable[[Request, Any], Coroutine[Any, Any, Response]],
-            ]
-        ] = None,
-        on_startup: Optional[Sequence[Callable[[], Any]]] = None,
-        on_shutdown: Optional[Sequence[Callable[[], Any]]] = None,
-        lifespan: Optional[Lifespan[AppType]] = None,
-        terms_of_service: Optional[str] = None,
-        contact: Optional[Dict[str, Union[str, Any]]] = None,
-        license_info: Optional[Dict[str, Union[str, Any]]] = None,
-        openapi_prefix: str = "",
-        root_path: str = "",
-        root_path_in_servers: bool = True,
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        webhooks: Optional[routing.APIRouter] = None,
-        deprecated: Optional[bool] = None,
-        include_in_schema: bool = True,
-        swagger_ui_parameters: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
-        separate_input_output_schemas: bool = True,
-        **extra: Any,
+            self: AppType,
+            *,
+            debug: bool = False,
+            routes: Optional[List[BaseRoute]] = None,
+            title: str = "FastAPI",
+            summary: Optional[str] = None,
+            description: str = "",
+            version: str = "0.1.0",
+            openapi_url: Optional[str] = "/openapi.json",
+            openapi_tags: Optional[List[Dict[str, Any]]] = None,
+            servers: Optional[List[Dict[str, Union[str, Any]]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            default_response_class: Type[Response] = Default(JSONResponse),
+            redirect_slashes: bool = True,
+            docs_url: Optional[str] = "/docs",
+            redoc_url: Optional[str] = "/redoc",
+            swagger_ui_oauth2_redirect_url: Optional[str] = "/docs/oauth2-redirect",
+            swagger_ui_init_oauth: Optional[Dict[str, Any]] = None,
+            middleware: Optional[Sequence[Middleware]] = None,
+            exception_handlers: Optional[
+                Dict[
+                    Union[int, Type[Exception]],
+                    Callable[[Request, Any], Coroutine[Any, Any, Response]],
+                ]
+            ] = None,
+            on_startup: Optional[Sequence[Callable[[], Any]]] = None,
+            on_shutdown: Optional[Sequence[Callable[[], Any]]] = None,
+            lifespan: Optional[Lifespan[AppType]] = None,
+            terms_of_service: Optional[str] = None,
+            contact: Optional[Dict[str, Union[str, Any]]] = None,
+            license_info: Optional[Dict[str, Union[str, Any]]] = None,
+            openapi_prefix: str = "",
+            root_path: str = "",
+            root_path_in_servers: bool = True,
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            callbacks: Optional[List[BaseRoute]] = None,
+            webhooks: Optional[routing.APIRouter] = None,
+            deprecated: Optional[bool] = None,
+            include_in_schema: bool = True,
+            swagger_ui_parameters: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
+            separate_input_output_schemas: bool = True,
+            **extra: Any,
     ) -> None:
         self.debug = debug
         self.title = title
@@ -131,13 +141,27 @@ class FastAPI(Starlette):
         self.root_path = root_path or openapi_prefix
         self.state: State = State()
         self.dependency_overrides: Dict[Callable[..., Any], Callable[..., Any]] = {}
+
+        #
+        # todo x: 核心模块
+        #
         self.router: routing.APIRouter = routing.APIRouter(
             routes=routes,
             redirect_slashes=redirect_slashes,
             dependency_overrides_provider=self,
+
+            #
+            #
+            #
             on_startup=on_startup,
             on_shutdown=on_shutdown,
+
+            #
             lifespan=lifespan,
+
+            #
+            #
+            #
             default_response_class=default_response_class,
             dependencies=dependencies,
             callbacks=callbacks,
@@ -179,34 +203,34 @@ class FastAPI(Starlette):
                 exception_handlers[key] = value
 
         middleware = (
-            [Middleware(ServerErrorMiddleware, handler=error_handler, debug=debug)]
-            + self.user_middleware
-            + [
-                Middleware(
-                    ExceptionMiddleware, handlers=exception_handlers, debug=debug
-                ),
-                # Add FastAPI-specific AsyncExitStackMiddleware for dependencies with
-                # contextvars.
-                # This needs to happen after user middlewares because those create a
-                # new contextvars context copy by using a new AnyIO task group.
-                # The initial part of dependencies with 'yield' is executed in the
-                # FastAPI code, inside all the middlewares. However, the teardown part
-                # (after 'yield') is executed in the AsyncExitStack in this middleware.
-                # If the AsyncExitStack lived outside of the custom middlewares and
-                # contextvars were set in a dependency with 'yield' in that internal
-                # contextvars context, the values would not be available in the
-                # outer context of the AsyncExitStack.
-                # By placing the middleware and the AsyncExitStack here, inside all
-                # user middlewares, the code before and after 'yield' in dependencies
-                # with 'yield' is executed in the same contextvars context. Thus, all values
-                # set in contextvars before 'yield' are still available after 'yield,' as
-                # expected.
-                # Additionally, by having this AsyncExitStack here, after the
-                # ExceptionMiddleware, dependencies can now catch handled exceptions,
-                # e.g. HTTPException, to customize the teardown code (e.g. DB session
-                # rollback).
-                Middleware(AsyncExitStackMiddleware),
-            ]
+                [Middleware(ServerErrorMiddleware, handler=error_handler, debug=debug)]
+                + self.user_middleware
+                + [
+                    Middleware(
+                        ExceptionMiddleware, handlers=exception_handlers, debug=debug
+                    ),
+                    # Add FastAPI-specific AsyncExitStackMiddleware for dependencies with
+                    # contextvars.
+                    # This needs to happen after user middlewares because those create a
+                    # new contextvars context copy by using a new AnyIO task group.
+                    # The initial part of dependencies with 'yield' is executed in the
+                    # FastAPI code, inside all the middlewares. However, the teardown part
+                    # (after 'yield') is executed in the AsyncExitStack in this middleware.
+                    # If the AsyncExitStack lived outside of the custom middlewares and
+                    # contextvars were set in a dependency with 'yield' in that internal
+                    # contextvars context, the values would not be available in the
+                    # outer context of the AsyncExitStack.
+                    # By placing the middleware and the AsyncExitStack here, inside all
+                    # user middlewares, the code before and after 'yield' in dependencies
+                    # with 'yield' is executed in the same contextvars context. Thus, all values
+                    # set in contextvars before 'yield' are still available after 'yield,' as
+                    # expected.
+                    # Additionally, by having this AsyncExitStack here, after the
+                    # ExceptionMiddleware, dependencies can now catch handled exceptions,
+                    # e.g. HTTPException, to customize the teardown code (e.g. DB session
+                    # rollback).
+                    Middleware(AsyncExitStackMiddleware),
+                ]
         )
 
         app = self.router
@@ -266,7 +290,6 @@ class FastAPI(Starlette):
             self.add_route(self.docs_url, swagger_ui_html, include_in_schema=False)
 
             if self.swagger_ui_oauth2_redirect_url:
-
                 async def swagger_ui_redirect(req: Request) -> HTMLResponse:
                     return get_swagger_ui_oauth2_redirect_html()
 
@@ -276,7 +299,6 @@ class FastAPI(Starlette):
                     include_in_schema=False,
                 )
         if self.openapi_url and self.redoc_url:
-
             async def redoc_html(req: Request) -> HTMLResponse:
                 root_path = req.scope.get("root_path", "").rstrip("/")
                 openapi_url = root_path + self.openapi_url
@@ -292,36 +314,36 @@ class FastAPI(Starlette):
         await super().__call__(scope, receive, send)
 
     def add_api_route(
-        self,
-        path: str,
-        endpoint: Callable[..., Coroutine[Any, Any, Response]],
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        methods: Optional[List[str]] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Union[Type[Response], DefaultPlaceholder] = Default(
-            JSONResponse
-        ),
-        name: Optional[str] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            endpoint: Callable[..., Coroutine[Any, Any, Response]],
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            methods: Optional[List[str]] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Union[Type[Response], DefaultPlaceholder] = Default(
+                JSONResponse
+            ),
+            name: Optional[str] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> None:
         self.router.add_api_route(
             path,
@@ -351,33 +373,33 @@ class FastAPI(Starlette):
         )
 
     def api_route(
-        self,
-        path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        methods: Optional[List[str]] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Type[Response] = Default(JSONResponse),
-        name: Optional[str] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            methods: Optional[List[str]] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Type[Response] = Default(JSONResponse),
+            name: Optional[str] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.router.add_api_route(
@@ -411,12 +433,12 @@ class FastAPI(Starlette):
         return decorator
 
     def add_api_websocket_route(
-        self,
-        path: str,
-        endpoint: Callable[..., Any],
-        name: Optional[str] = None,
-        *,
-        dependencies: Optional[Sequence[Depends]] = None,
+            self,
+            path: str,
+            endpoint: Callable[..., Any],
+            name: Optional[str] = None,
+            *,
+            dependencies: Optional[Sequence[Depends]] = None,
     ) -> None:
         self.router.add_api_websocket_route(
             path,
@@ -426,11 +448,11 @@ class FastAPI(Starlette):
         )
 
     def websocket(
-        self,
-        path: str,
-        name: Optional[str] = None,
-        *,
-        dependencies: Optional[Sequence[Depends]] = None,
+            self,
+            path: str,
+            name: Optional[str] = None,
+            *,
+            dependencies: Optional[Sequence[Depends]] = None,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_api_websocket_route(
@@ -444,20 +466,20 @@ class FastAPI(Starlette):
         return decorator
 
     def include_router(
-        self,
-        router: routing.APIRouter,
-        *,
-        prefix: str = "",
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        include_in_schema: bool = True,
-        default_response_class: Type[Response] = Default(JSONResponse),
-        callbacks: Optional[List[BaseRoute]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            router: routing.APIRouter,
+            *,
+            prefix: str = "",
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            include_in_schema: bool = True,
+            default_response_class: Type[Response] = Default(JSONResponse),
+            callbacks: Optional[List[BaseRoute]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> None:
         self.router.include_router(
             router,
@@ -472,35 +494,41 @@ class FastAPI(Starlette):
             generate_unique_id_function=generate_unique_id_function,
         )
 
+    #
+    # todo x: HTTP GET 路由装饰器
+    #
     def get(
-        self,
-        path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Type[Response] = Default(JSONResponse),
-        name: Optional[str] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Type[Response] = Default(JSONResponse),
+            name: Optional[str] = None,
+            callbacks: Optional[List[BaseRoute]] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        #
+        # todo x: 路由
+        #
         return self.router.get(
             path,
             response_model=response_model,
@@ -528,33 +556,33 @@ class FastAPI(Starlette):
         )
 
     def put(
-        self,
-        path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Type[Response] = Default(JSONResponse),
-        name: Optional[str] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Type[Response] = Default(JSONResponse),
+            name: Optional[str] = None,
+            callbacks: Optional[List[BaseRoute]] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.put(
             path,
@@ -583,33 +611,33 @@ class FastAPI(Starlette):
         )
 
     def post(
-        self,
-        path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Type[Response] = Default(JSONResponse),
-        name: Optional[str] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Type[Response] = Default(JSONResponse),
+            name: Optional[str] = None,
+            callbacks: Optional[List[BaseRoute]] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.post(
             path,
@@ -638,33 +666,33 @@ class FastAPI(Starlette):
         )
 
     def delete(
-        self,
-        path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Type[Response] = Default(JSONResponse),
-        name: Optional[str] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Type[Response] = Default(JSONResponse),
+            name: Optional[str] = None,
+            callbacks: Optional[List[BaseRoute]] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.delete(
             path,
@@ -693,33 +721,33 @@ class FastAPI(Starlette):
         )
 
     def options(
-        self,
-        path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Type[Response] = Default(JSONResponse),
-        name: Optional[str] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Type[Response] = Default(JSONResponse),
+            name: Optional[str] = None,
+            callbacks: Optional[List[BaseRoute]] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.options(
             path,
@@ -748,33 +776,33 @@ class FastAPI(Starlette):
         )
 
     def head(
-        self,
-        path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Type[Response] = Default(JSONResponse),
-        name: Optional[str] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Type[Response] = Default(JSONResponse),
+            name: Optional[str] = None,
+            callbacks: Optional[List[BaseRoute]] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.head(
             path,
@@ -803,33 +831,33 @@ class FastAPI(Starlette):
         )
 
     def patch(
-        self,
-        path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Type[Response] = Default(JSONResponse),
-        name: Optional[str] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Type[Response] = Default(JSONResponse),
+            name: Optional[str] = None,
+            callbacks: Optional[List[BaseRoute]] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.patch(
             path,
@@ -858,33 +886,33 @@ class FastAPI(Starlette):
         )
 
     def trace(
-        self,
-        path: str,
-        *,
-        response_model: Any = Default(None),
-        status_code: Optional[int] = None,
-        tags: Optional[List[Union[str, Enum]]] = None,
-        dependencies: Optional[Sequence[Depends]] = None,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        response_description: str = "Successful Response",
-        responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
-        deprecated: Optional[bool] = None,
-        operation_id: Optional[str] = None,
-        response_model_include: Optional[IncEx] = None,
-        response_model_exclude: Optional[IncEx] = None,
-        response_model_by_alias: bool = True,
-        response_model_exclude_unset: bool = False,
-        response_model_exclude_defaults: bool = False,
-        response_model_exclude_none: bool = False,
-        include_in_schema: bool = True,
-        response_class: Type[Response] = Default(JSONResponse),
-        name: Optional[str] = None,
-        callbacks: Optional[List[BaseRoute]] = None,
-        openapi_extra: Optional[Dict[str, Any]] = None,
-        generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
-            generate_unique_id
-        ),
+            self,
+            path: str,
+            *,
+            response_model: Any = Default(None),
+            status_code: Optional[int] = None,
+            tags: Optional[List[Union[str, Enum]]] = None,
+            dependencies: Optional[Sequence[Depends]] = None,
+            summary: Optional[str] = None,
+            description: Optional[str] = None,
+            response_description: str = "Successful Response",
+            responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
+            deprecated: Optional[bool] = None,
+            operation_id: Optional[str] = None,
+            response_model_include: Optional[IncEx] = None,
+            response_model_exclude: Optional[IncEx] = None,
+            response_model_by_alias: bool = True,
+            response_model_exclude_unset: bool = False,
+            response_model_exclude_defaults: bool = False,
+            response_model_exclude_none: bool = False,
+            include_in_schema: bool = True,
+            response_class: Type[Response] = Default(JSONResponse),
+            name: Optional[str] = None,
+            callbacks: Optional[List[BaseRoute]] = None,
+            openapi_extra: Optional[Dict[str, Any]] = None,
+            generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
+                generate_unique_id
+            ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.trace(
             path,
@@ -912,8 +940,12 @@ class FastAPI(Starlette):
             generate_unique_id_function=generate_unique_id_function,
         )
 
+    ########################################################################
+    #
+    # todo x: 基于 starlette 的 add_websocket_route hook 实现
+    #
     def websocket_route(
-        self, path: str, name: Union[str, None] = None
+            self, path: str, name: Union[str, None] = None
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.router.add_websocket_route(path, func, name=name)
@@ -921,22 +953,33 @@ class FastAPI(Starlette):
 
         return decorator
 
+    ########################################################################
+    #
+    # todo x: 基于 starlette 的 on_event hook 实现
+    #
     def on_event(
-        self, event_type: str
+            self, event_type: str
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         return self.router.on_event(event_type)
 
+    ########################################################################
+    #
+    # todo x: 基于 starlette 的 add_middleware 实现
+    #
     def middleware(
-        self, middleware_type: str
+            self, middleware_type: str
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            #
+            # todo x: 基于 starlette 的 add_middleware 实现
+            #
             self.add_middleware(BaseHTTPMiddleware, dispatch=func)
             return func
 
         return decorator
 
     def exception_handler(
-        self, exc_class_or_status_code: Union[int, Type[Exception]]
+            self, exc_class_or_status_code: Union[int, Type[Exception]]
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_exception_handler(exc_class_or_status_code, func)

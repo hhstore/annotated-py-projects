@@ -518,6 +518,9 @@ class APIRoute(routing.Route):
         return match, child_scope
 
 
+#
+#
+#
 class APIRouter(routing.Router):
     def __init__(
         self,
@@ -668,6 +671,10 @@ class APIRouter(routing.Router):
             openapi_extra=openapi_extra,
             generate_unique_id_function=current_generate_unique_id,
         )
+
+        #
+        # todo x: 基于 starlette 的路由，添加自定义的路由
+        #
         self.routes.append(route)
 
     def api_route(
@@ -1350,6 +1357,9 @@ class APIRouter(routing.Router):
         self, event_type: str
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            #
+            # todo x: 基于 starlette 的事件处理 hook: [startup, shutdown]
+            #
             self.add_event_handler(event_type, func)
             return func
 
