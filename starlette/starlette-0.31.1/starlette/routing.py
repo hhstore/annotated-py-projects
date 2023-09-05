@@ -274,12 +274,21 @@ class Route(BaseRoute):
         assert not remaining_params
         return URLPath(path=path, protocol="http")
 
+    ########################################################################
+
+    #
+    #
+    #
     async def handle(self, scope: Scope, receive: Receive, send: Send) -> None:
         if self.methods and scope["method"] not in self.methods:
             headers = {"Allow": ", ".join(self.methods)}
             if "app" in scope:
                 raise HTTPException(status_code=405, headers=headers)
             else:
+
+                #
+                # todo x:
+                #
                 response = PlainTextResponse(
                     "Method Not Allowed", status_code=405, headers=headers
                 )

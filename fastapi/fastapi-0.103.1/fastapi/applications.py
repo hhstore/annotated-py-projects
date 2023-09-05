@@ -70,13 +70,27 @@ class FastAPI(Starlette):
             openapi_url: Optional[str] = "/openapi.json",
             openapi_tags: Optional[List[Dict[str, Any]]] = None,
             servers: Optional[List[Dict[str, Union[str, Any]]]] = None,
+
+            #
+            #
+            #
             dependencies: Optional[Sequence[Depends]] = None,
+
             default_response_class: Type[Response] = Default(JSONResponse),
             redirect_slashes: bool = True,
-            docs_url: Optional[str] = "/docs",
-            redoc_url: Optional[str] = "/redoc",
+
+            #
+            #
+            #
+            docs_url: Optional[str] = "/docs",     # todo x: 内置2套 API Doc 工具
+            redoc_url: Optional[str] = "/redoc",   # todo x: 内置2套 API Doc 工具
+
             swagger_ui_oauth2_redirect_url: Optional[str] = "/docs/oauth2-redirect",
             swagger_ui_init_oauth: Optional[Dict[str, Any]] = None,
+
+            #
+            #
+            #
             middleware: Optional[Sequence[Middleware]] = None,
             exception_handlers: Optional[
                 Dict[
@@ -84,6 +98,10 @@ class FastAPI(Starlette):
                     Callable[[Request, Any], Coroutine[Any, Any, Response]],
                 ]
             ] = None,
+
+            #
+            #
+            #
             on_startup: Optional[Sequence[Callable[[], Any]]] = None,
             on_shutdown: Optional[Sequence[Callable[[], Any]]] = None,
             lifespan: Optional[Lifespan[AppType]] = None,
@@ -142,6 +160,7 @@ class FastAPI(Starlette):
         self.state: State = State()
         self.dependency_overrides: Dict[Callable[..., Any], Callable[..., Any]] = {}
 
+        ########################################################################
         #
         # todo x: 核心模块
         #
@@ -170,6 +189,12 @@ class FastAPI(Starlette):
             responses=responses,
             generate_unique_id_function=generate_unique_id_function,
         )
+
+        ########################################################################
+
+        #
+        #
+        #
         self.exception_handlers: Dict[
             Any, Callable[[Request, Any], Union[Response, Awaitable[Response]]]
         ] = ({} if exception_handlers is None else dict(exception_handlers))
@@ -257,6 +282,11 @@ class FastAPI(Starlette):
             )
         return self.openapi_schema
 
+    ########################################################################
+
+    #
+    #
+    #
     def setup(self) -> None:
         if self.openapi_url:
             urls = (server_data.get("url") for server_data in self.servers)
@@ -313,14 +343,29 @@ class FastAPI(Starlette):
             scope["root_path"] = self.root_path
         await super().__call__(scope, receive, send)
 
+    ########################################################################
+
+    #
+    #
+    #
     def add_api_route(
             self,
             path: str,
+
+            ########################################################################
+            #
+            #
+            #
             endpoint: Callable[..., Coroutine[Any, Any, Response]],
+
             *,
             response_model: Any = Default(None),
             status_code: Optional[int] = None,
             tags: Optional[List[Union[str, Enum]]] = None,
+
+            #
+            #
+            #
             dependencies: Optional[Sequence[Depends]] = None,
             summary: Optional[str] = None,
             description: Optional[str] = None,
@@ -336,18 +381,38 @@ class FastAPI(Starlette):
             response_model_exclude_defaults: bool = False,
             response_model_exclude_none: bool = False,
             include_in_schema: bool = True,
+
+            ########################################################################
+            #
+            # todo x: 核心!!!!
+            #
             response_class: Union[Type[Response], DefaultPlaceholder] = Default(
+                #
+                # todo x: 核心!!!!
+                #
                 JSONResponse
             ),
+
+            ########################################################################
+
             name: Optional[str] = None,
             openapi_extra: Optional[Dict[str, Any]] = None,
             generate_unique_id_function: Callable[[routing.APIRoute], str] = Default(
                 generate_unique_id
             ),
     ) -> None:
+
+        #
+        # todo x: 核心!!!! 依赖注入!!!
+        #
         self.router.add_api_route(
             path,
+
+            #
+            #
+            #
             endpoint=endpoint,
+
             response_model=response_model,
             status_code=status_code,
             tags=tags,
@@ -366,16 +431,29 @@ class FastAPI(Starlette):
             response_model_exclude_defaults=response_model_exclude_defaults,
             response_model_exclude_none=response_model_exclude_none,
             include_in_schema=include_in_schema,
+
+            #
+            # todo x: 核心!!!!!
+            #
             response_class=response_class,
             name=name,
             openapi_extra=openapi_extra,
             generate_unique_id_function=generate_unique_id_function,
         )
 
+    ########################################################################
+
+    #
+    #
+    #
     def api_route(
             self,
             path: str,
             *,
+
+            #
+            #
+            #
             response_model: Any = Default(None),
             status_code: Optional[int] = None,
             tags: Optional[List[Union[str, Enum]]] = None,
@@ -401,10 +479,28 @@ class FastAPI(Starlette):
                 generate_unique_id
             ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+
+        #
+        #
+        #
+        #
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+
+            #
+            # todo x: 核心调用!!! 依赖注入!!!
+            #
             self.router.add_api_route(
                 path,
+
+                ########################################################################
+                #
+                # todo x: 依赖注入, 核心参数
+                #
                 func,
+
+                #
+                #
+                #
                 response_model=response_model,
                 status_code=status_code,
                 tags=tags,
@@ -428,6 +524,11 @@ class FastAPI(Starlette):
                 openapi_extra=openapi_extra,
                 generate_unique_id_function=generate_unique_id_function,
             )
+
+            ########################################################################
+            #
+            # todo x: 注意返回值, 是传入的 func 参数
+            #
             return func
 
         return decorator
@@ -618,6 +719,10 @@ class FastAPI(Starlette):
             generate_unique_id_function=generate_unique_id_function,
         )
 
+    ########################################################################
+    #
+    #
+    #
     def post(
             self,
             path: str,
@@ -625,6 +730,10 @@ class FastAPI(Starlette):
             response_model: Any = Default(None),
             status_code: Optional[int] = None,
             tags: Optional[List[Union[str, Enum]]] = None,
+
+            #
+            #
+            #
             dependencies: Optional[Sequence[Depends]] = None,
             summary: Optional[str] = None,
             description: Optional[str] = None,
@@ -647,11 +756,19 @@ class FastAPI(Starlette):
                 generate_unique_id
             ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+
+        #
+        #
+        #
         return self.router.post(
             path,
             response_model=response_model,
             status_code=status_code,
             tags=tags,
+
+            #
+            #
+            #
             dependencies=dependencies,
             summary=summary,
             description=description,
