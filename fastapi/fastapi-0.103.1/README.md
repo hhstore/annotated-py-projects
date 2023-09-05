@@ -67,4 +67,6 @@
 ## 核心链路/模块:
 
 - [fastapi/applications.py](fastapi/applications.py)
-
+- 依赖注入:
+    - 核心是 [routing.py](fastapi/routing.py) 内部装饰器实现
+    - [fastapi/params.py](fastapi/params.py)

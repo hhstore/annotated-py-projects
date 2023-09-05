@@ -504,6 +504,10 @@ class FastAPI(Starlette):
             response_model: Any = Default(None),
             status_code: Optional[int] = None,
             tags: Optional[List[Union[str, Enum]]] = None,
+
+            #
+            # todo x: 依赖注入机制
+            #
             dependencies: Optional[Sequence[Depends]] = None,
             summary: Optional[str] = None,
             description: Optional[str] = None,
@@ -534,6 +538,10 @@ class FastAPI(Starlette):
             response_model=response_model,
             status_code=status_code,
             tags=tags,
+
+            #
+            # todo x: 依赖注入机制
+            #
             dependencies=dependencies,
             summary=summary,
             description=description,

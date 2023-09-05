@@ -563,7 +563,10 @@ def File(  # noqa: N802
         **extra,
     )
 
-
+########################################################################
+#
+# todo x: 依赖注入
+#
 def Depends(  # noqa: N802
     dependency: Optional[Callable[..., Any]] = None, *, use_cache: bool = True
 ) -> Any:

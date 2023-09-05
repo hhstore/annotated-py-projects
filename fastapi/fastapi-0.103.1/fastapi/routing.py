@@ -527,6 +527,10 @@ class APIRouter(routing.Router):
         *,
         prefix: str = "",
         tags: Optional[List[Union[str, Enum]]] = None,
+
+        #
+        #
+        #
         dependencies: Optional[Sequence[params.Depends]] = None,
         default_response_class: Type[Response] = Default(JSONResponse),
         responses: Optional[Dict[Union[int, str], Dict[str, Any]]] = None,
@@ -535,6 +539,10 @@ class APIRouter(routing.Router):
         redirect_slashes: bool = True,
         default: Optional[ASGIApp] = None,
         dependency_overrides_provider: Optional[Any] = None,
+
+        #
+        #
+        #
         route_class: Type[APIRoute] = APIRoute,
         on_startup: Optional[Sequence[Callable[[], Any]]] = None,
         on_shutdown: Optional[Sequence[Callable[[], Any]]] = None,
@@ -562,12 +570,20 @@ class APIRouter(routing.Router):
             ), "A path prefix must not end with '/', as the routes will start with '/'"
         self.prefix = prefix
         self.tags: List[Union[str, Enum]] = tags or []
+
+        #
+        #
+        #
         self.dependencies = list(dependencies or [])
         self.deprecated = deprecated
         self.include_in_schema = include_in_schema
         self.responses = responses or {}
         self.callbacks = callbacks or []
         self.dependency_overrides_provider = dependency_overrides_provider
+
+        #
+        #
+        #
         self.route_class = route_class
         self.default_response_class = default_response_class
         self.generate_unique_id_function = generate_unique_id_function
@@ -591,14 +607,27 @@ class APIRouter(routing.Router):
 
         return decorator
 
+    ########################################################################
+    #
+    # todo x: 依赖注入实现细节
+    #
     def add_api_route(
         self,
         path: str,
+
+        #
+        # todo x: func 参数传入
+        #
         endpoint: Callable[..., Any],
+
         *,
         response_model: Any = Default(None),
         status_code: Optional[int] = None,
         tags: Optional[List[Union[str, Enum]]] = None,
+
+        #
+        #
+        #
         dependencies: Optional[Sequence[params.Depends]] = None,
         summary: Optional[str] = None,
         description: Optional[str] = None,
@@ -618,6 +647,10 @@ class APIRouter(routing.Router):
             JSONResponse
         ),
         name: Optional[str] = None,
+
+        #
+        #
+        #
         route_class_override: Optional[Type[APIRoute]] = None,
         callbacks: Optional[List[BaseRoute]] = None,
         openapi_extra: Optional[Dict[str, Any]] = None,
@@ -625,7 +658,11 @@ class APIRouter(routing.Router):
             Callable[[APIRoute], str], DefaultPlaceholder
         ] = Default(generate_unique_id),
     ) -> None:
+        #
+        # todo x:
+        #
         route_class = route_class_override or self.route_class
+
         responses = responses or {}
         combined_responses = {**self.responses, **responses}
         current_response_class = get_value_or_default(
@@ -634,7 +671,12 @@ class APIRouter(routing.Router):
         current_tags = self.tags.copy()
         if tags:
             current_tags.extend(tags)
+
         current_dependencies = self.dependencies.copy()
+
+        #
+        #
+        #
         if dependencies:
             current_dependencies.extend(dependencies)
         current_callbacks = self.callbacks.copy()
@@ -643,12 +685,27 @@ class APIRouter(routing.Router):
         current_generate_unique_id = get_value_or_default(
             generate_unique_id_function, self.generate_unique_id_function
         )
+
+        ########################################################################
+
+        #
+        #
+        #
         route = route_class(
             self.prefix + path,
+
+            #
+            # todo x: 传入的 func 参数
+            #
             endpoint=endpoint,
+
             response_model=response_model,
             status_code=status_code,
             tags=current_tags,
+
+            #
+            #
+            #
             dependencies=current_dependencies,
             summary=summary,
             description=description,
@@ -677,6 +734,10 @@ class APIRouter(routing.Router):
         #
         self.routes.append(route)
 
+    ########################################################################
+    #
+    #
+    #
     def api_route(
         self,
         path: str,
@@ -684,6 +745,10 @@ class APIRouter(routing.Router):
         response_model: Any = Default(None),
         status_code: Optional[int] = None,
         tags: Optional[List[Union[str, Enum]]] = None,
+
+        #
+        #
+        #
         dependencies: Optional[Sequence[params.Depends]] = None,
         summary: Optional[str] = None,
         description: Optional[str] = None,
@@ -707,13 +772,29 @@ class APIRouter(routing.Router):
             generate_unique_id
         ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+
+        #
+        # todo x: 装饰圈实现细节:
+        #
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            #
+            # todo x: 核心参数为 func
+            #
             self.add_api_route(
                 path,
+
+                #
+                # todo x: 核心参数
+                #
                 func,
+
                 response_model=response_model,
                 status_code=status_code,
                 tags=tags,
+
+                #
+                #
+                #
                 dependencies=dependencies,
                 summary=summary,
                 description=description,
@@ -905,6 +986,11 @@ class APIRouter(routing.Router):
         for handler in router.on_shutdown:
             self.add_event_handler("shutdown", handler)
 
+    ########################################################################
+
+    #
+    #
+    #
     def get(
         self,
         path: str,
@@ -912,6 +998,10 @@ class APIRouter(routing.Router):
         response_model: Any = Default(None),
         status_code: Optional[int] = None,
         tags: Optional[List[Union[str, Enum]]] = None,
+
+        #
+        # todo x: 依赖注入
+        #
         dependencies: Optional[Sequence[params.Depends]] = None,
         summary: Optional[str] = None,
         description: Optional[str] = None,
@@ -934,11 +1024,19 @@ class APIRouter(routing.Router):
             generate_unique_id
         ),
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+
+        #
+        #
+        #
         return self.api_route(
             path=path,
             response_model=response_model,
             status_code=status_code,
             tags=tags,
+
+            #
+            #
+            #
             dependencies=dependencies,
             summary=summary,
             description=description,
