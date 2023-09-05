@@ -8,6 +8,7 @@
 
 - fastapi 依赖 starlette 实现绝大部分的核心功能.
 - so, 分析 starlette 有助于理解 fastapi 的实现原理.
+- starlette 只依赖 [anyio](https://github.com/agronholm/anyio)
 
 ## 项目结构:
 
