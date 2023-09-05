@@ -50,9 +50,20 @@ class Starlette:
     def __init__(
         self: "AppType",
         debug: bool = False,
+        #
+        #
+        #
         routes: typing.Sequence[BaseRoute] | None = None,
+
+        #
+        # todo x: 中间件/插件机制
+        #
         middleware: typing.Sequence[Middleware] | None = None,
         exception_handlers: typing.Mapping[typing.Any, ExceptionHandler] | None = None,
+
+        #
+        # todo x: 钩子, hook up on_startup and on_shutdown
+        #
         on_startup: typing.Sequence[typing.Callable[[], typing.Any]] | None = None,
         on_shutdown: typing.Sequence[typing.Callable[[], typing.Any]] | None = None,
         lifespan: typing.Optional[Lifespan["AppType"]] = None,
@@ -65,6 +76,10 @@ class Starlette:
 
         self.debug = debug
         self.state = State()
+
+        #
+        # todo x: HTTP 路由
+        #
         self.router = Router(
             routes, on_startup=on_startup, on_shutdown=on_shutdown, lifespan=lifespan
         )

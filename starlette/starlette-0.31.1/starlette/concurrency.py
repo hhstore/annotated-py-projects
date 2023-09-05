@@ -2,11 +2,14 @@ import functools
 import typing
 import warnings
 
-import anyio.to_thread
+import anyio.to_thread  # TODO X: 异步 IO
 
 T = typing.TypeVar("T")
 
 
+#
+# TODO X: 此方法已经废弃
+#
 async def run_until_first_complete(*args: typing.Tuple[typing.Callable, dict]) -> None:  # type: ignore[type-arg]  # noqa: E501
     warnings.warn(
         "run_until_first_complete is deprecated "
@@ -24,6 +27,9 @@ async def run_until_first_complete(*args: typing.Tuple[typing.Callable, dict]) -
             task_group.start_soon(run, functools.partial(func, **kwargs))
 
 
+#
+# todo x: 线程池模式
+#
 # TODO: We should use `ParamSpec` here, but mypy doesn't support it yet.
 # Check https://github.com/python/mypy/issues/12278 for more details.
 async def run_in_threadpool(
@@ -32,6 +38,9 @@ async def run_in_threadpool(
     if kwargs:  # pragma: no cover
         # run_sync doesn't accept 'kwargs', so bind them in here
         func = functools.partial(func, **kwargs)
+    #
+    # todo x: 异步 IO, 基于 anyio
+    #
     return await anyio.to_thread.run_sync(func, *args)
 
 

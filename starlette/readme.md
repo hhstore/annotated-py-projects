@@ -12,4 +12,11 @@
 
 ## 项目结构:
 
+-
 
+## 源码分析:
+
+- 入口: [starlette/applications.py](starlette-0.31.1/starlette/applications.py)
+- 后台任务: [starlette/background.py](starlette-0.31.1/starlette/background.py)
+    - 异步线程池 + anyio
+- 异步线程池: [starlette/concurrency.py](starlette-0.31.1/starlette/concurrency.py)
